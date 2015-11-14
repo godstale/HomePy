@@ -1,0 +1,37 @@
+[1978815352] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978815352] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978815352] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+[1978270584] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978270584] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978270584] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+[1978299256] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978299256] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978299256] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+[1978057592] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978057592] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978057592] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+[1978246008] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978246008] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978246008] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+[1978622840] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978622840] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978622840] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+[1978831736] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978831736] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978831736] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+[1978139512] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978139512] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978139512] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+[1978311544] [NTC] [ALL] conf_load: Processing thread 0 - config file /usr/bin/tmp/motion-mmalcam.conf
+[1978311544] [NTC] [ALL] motion_startup: Motion mmaltest Started
+[1978311544] [NTC] [ALL] motion_startup: Logging to file (/home/pi/motion/motion.log)
+mmal: mmal_vc_component_enable: failed to enable component: ENOSPC
+python: can't open file 'homechat': [Errno 2] No such file or directory
+python: can't open file 'homechat': [Errno 2] No such file or directory

@@ -1,0 +1,38 @@
+#!/bin/bash
+# /etc/init.d/homepyd
+ 
+### BEGIN INIT INFO
+# Provides:          homepy
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: HomePy daemon script
+# Description:       HomePy Daemon Script
+### END INIT INFO
+ 
+EXEC_ACCOUNT="pi"
+ 
+case "$1" in
+    start)
+        echo "Starting HomePy Deamon"
+        su - $EXEC_ACCOUNT -c "/home/pi/tg/bot/hp.sh start"
+        ;;
+    stop)
+        #echo "Stopping HomePy Daemon"
+        su - $EXEC_ACCOUNT -c "/home/pi/tg/bot/hp.sh stop"
+        ;;
+    restart)
+        su - $EXEC_ACCOUNT -c "/home/pi/tg/bot/hp.sh stop"
+        su - $EXEC_ACCOUNT -c "/home/pi/tg/bot/hp.sh start"
+        ;;
+    status)
+    su - $EXEC_ACCOUNT -c "/home/pi/tg/bot/hp.sh chk"
+    ;;
+    *)
+        echo "Usage: /etc/init.d/homepyd {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+ 
+exit 0

@@ -1,0 +1,17 @@
+###########################################
+#  HomePy : Control home with telegram messenger
+#  
+#  By http://www.hardcopyworld.com
+#  Young Bae Suh, godstale@hotmail.com
+###########################################
+
+
+v0.5.1
+- change WAN IP search shell command
+- expand graph size
+- change date display method of graph
+- stable version
+
+v0.5
+Initial commit
+
