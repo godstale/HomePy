@@ -16,10 +16,10 @@
 #define LED_PIN 13
 
 // Humidity check
+#define CHECK_INTERVAL 300000
 unsigned long prevReadTime = 0;
 
 // Water pump control
-#define CHECK_INTERVAL 300000
 #define AUTO_STOP_INTERVAL 1500
 #define HUMIDITY_THRESHOLD 250
 int isValveOn = 0;
