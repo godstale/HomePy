@@ -222,10 +222,12 @@ def echo_all(message):
                 msg += "\n" + msg_category() +"1=" + str(device[1])
                 msg += ", " + msg_category() +"2=" + str(device[2])
                 msg += ", ID=" + str(device[3])
-                msg += "\n\n" + msg_devdesc_command()
+                msg += "\n\n"
                 count = count + 1
             if count < 1:
                 msg += msg_device_not_found()
+            else:
+                msg += msg_devdesc_command()
             bot.reply_to(message, msg)
         # Device - Show device details
         elif cmd[1] == 'desc' or cmd[1] == 'detail' or cmd[1] == '상세':

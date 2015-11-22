@@ -41,6 +41,7 @@ class SerialThread(threading.Thread):
         self.recv_queue = recv_queue
         self.send_queue = send_queue
         self.cmd_callback = callback
+        self.bytes = list()
 
     def connect(self):
         # Connect serial
@@ -60,24 +61,28 @@ class SerialThread(threading.Thread):
     # device information list will be put into queue (recv_queue)
     def parse(self, stream):
         self.stream = stream
-        bytes = bytearray(stream)
+        in_bytes = bytearray(stream)
         index = 0
-        for i in range(len(bytes)):
+        # append packet to buffer
+        for idx in range(len(in_bytes)):
+            self.bytes.append(in_bytes[idx])
+            if len(self.bytes) < PACKET_LEN:
+                continue
             # check packet validity at this index
-            if (bytes[i] == IN_START1 and bytes[i+1] == IN_START2 
-                    and i+PACKET_LEN <= len(bytes) 
-                    and bytes[i+PACKET_LEN-1] == IN_END):
-                index = i
+            if (index+PACKET_LEN <= len(self.bytes)
+                    and self.bytes[index] == IN_START1 
+                    and self.bytes[index+1] == IN_START2 
+                    and self.bytes[index+PACKET_LEN-1] == IN_END):
                 # start parsing
                 # index+2 : category1, index+3 : category2, index+4 : ID, index+5 : command
                 # index+6~index+7 : Data1, index+8~index+9 : Data2, ..., index+12~index+13 : Data4
                 # index+14 : End byte
                 device_info = []
                 device_info.append(1)    # 0: queue item type
-                device_info.append(int(bytes[index+2]))  # 1: cat1
-                device_info.append(int(bytes[index+3]))  # 2: cat2
-                device_info.append(int(bytes[index+4]))  # 3: device ID
-                command = int(bytes[index+5])
+                device_info.append(int(self.bytes[index+2]))  # 1: cat1
+                device_info.append(int(self.bytes[index+3]))  # 2: cat2
+                device_info.append(int(self.bytes[index+4]))  # 3: device ID
+                command = int(self.bytes[index+5])
                 device_info.append(command)  # 4: command
 
                 # ping response
@@ -100,30 +105,32 @@ class SerialThread(threading.Thread):
                     device_info.append(int(time.time()))  #timestamp
                     # pass to callback function
                     self.cmd_callback(device_info)
-
+                    # empty buffer
+                    self.bytes = list()
                 # register device
                 elif command == CMD_REGISTER:
                     print '    Command : Register device'
-                    device_info.append(int(bytes[index+6]))  # 5: available cmd 1
-                    device_info.append(int(bytes[index+7]))  # 6: available cmd 1 - data type
-                    device_info.append(int(bytes[index+8]))  # 7: 
-                    device_info.append(int(bytes[index+9]))  # 8: 
-                    device_info.append(int(bytes[index+10])) # 9: 
-                    device_info.append(int(bytes[index+11]))  # 10: 
-                    device_info.append(int(bytes[index+12]))  # 11: available cmd 4
-                    device_info.append(int(bytes[index+13]))  # 12: available cmd 4 - data type
+                    device_info.append(int(self.bytes[index+6]))  # 5: available cmd 1
+                    device_info.append(int(self.bytes[index+7]))  # 6: available cmd 1 - data type
+                    device_info.append(int(self.bytes[index+8]))  # 7: 
+                    device_info.append(int(self.bytes[index+9]))  # 8: 
+                    device_info.append(int(self.bytes[index+10])) # 9: 
+                    device_info.append(int(self.bytes[index+11]))  # 10: 
+                    device_info.append(int(self.bytes[index+12]))  # 11: available cmd 4
+                    device_info.append(int(self.bytes[index+13]))  # 12: available cmd 4 - data type
                     device_info.append('User device')  # 13: name
                     device_info.append('NA')  # 14: location
                     device_info.append(int(time.time()))  # 15: timestamp
                     # put in queue
                     self.recv_queue.put(device_info)
-
+                    # empty buffer
+                    self.bytes = list()
                 # update sensor value
                 elif command == CMD_UPDATE:
-                    data1 = (int(bytes[index+6]) << 8) | int(bytes[index+7])
-                    data2 = (int(bytes[index+8]) << 8) | int(bytes[index+9])
-                    data3 = (int(bytes[index+10]) << 8) | int(bytes[index+11])
-                    data4 = (int(bytes[index+12]) << 8) | int(bytes[index+13])
+                    data1 = (int(self.bytes[index+6]) << 8) | int(self.bytes[index+7])
+                    data2 = (int(self.bytes[index+8]) << 8) | int(self.bytes[index+9])
+                    data3 = (int(self.bytes[index+10]) << 8) | int(self.bytes[index+11])
+                    data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
                     print '    Command : Update sensor value (%d, %d, %d, %d)' % (data1, data2, data3, data4)
                     device_info.append(data1)  # 5: int data 1
                     device_info.append(data2)  # 6: int data 2
@@ -138,13 +145,14 @@ class SerialThread(threading.Thread):
                     device_info.append(int(time.time()))  # 15: timestamp
                     # put in queue
                     self.recv_queue.put(device_info)
-
+                    # empty buffer
+                    self.bytes = list()
                 # control signal response
                 elif command == CMD_CONTROL:
-                    data1 = (int(bytes[index+6]) << 8) | int(bytes[index+7])
-                    data2 = (int(bytes[index+8]) << 8) | int(bytes[index+9])
-                    data3 = (int(bytes[index+10]) << 8) | int(bytes[index+11])
-                    data4 = (int(bytes[index+12]) << 8) | int(bytes[index+13])
+                    data1 = (int(self.bytes[index+6]) << 8) | int(self.bytes[index+7])
+                    data2 = (int(self.bytes[index+8]) << 8) | int(self.bytes[index+9])
+                    data3 = (int(self.bytes[index+10]) << 8) | int(self.bytes[index+11])
+                    data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
                     print '    Command : result of control request (%d, %d, %d, %d)' % (data1, data2, data3, data4)
                     device_info.append(data1)  # int data 1
                     device_info.append(data2)  # int data 2
@@ -159,9 +167,13 @@ class SerialThread(threading.Thread):
                     device_info.append(int(time.time()))  #timestamp
                     # pass to callback function
                     self.cmd_callback(device_info)
-
+                    # empty buffer
+                    self.bytes = list()
                 else:
                     print '    Undefined command !!'
+            # resize buffer
+            if len(self.bytes) > 0:
+                del self.bytes[0]
         # End of parse function
         return
 

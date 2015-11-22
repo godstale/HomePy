@@ -5,6 +5,9 @@
 #  Young Bae Suh, godstale@hotmail.com
 ###########################################
 
+v0.5.2
+- change packet parsing routine (fix multi-line packet bug)
+- fix device list text
 
 v0.5.1
 - change WAN IP search shell command
