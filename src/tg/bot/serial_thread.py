@@ -10,7 +10,6 @@ import serial
 import time
 import array
 
-
 ############################################
 # Global variables
 ############################################
@@ -127,10 +126,28 @@ class SerialThread(threading.Thread):
                     self.bytes = list()
                 # update sensor value
                 elif command == CMD_UPDATE:
-                    data1 = (int(self.bytes[index+6]) << 8) | int(self.bytes[index+7])
-                    data2 = (int(self.bytes[index+8]) << 8) | int(self.bytes[index+9])
-                    data3 = (int(self.bytes[index+10]) << 8) | int(self.bytes[index+11])
-                    data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
+                    data1, data2, data3, data4 = 0x0000,0x0000,0x0000,0x0000
+                    # you have to check negative value
+                    if self.bytes[index+6] & 0x80 == 0x80:
+                        data1 = int(self.bytes[index+6] ^ 0xff) << 8 | int(self.bytes[index+7] ^ 0xff)
+                        data1 *= -1
+                    else:
+                        data1 = (int(self.bytes[index+6]) << 8) | int(self.bytes[index+7])
+                    if self.bytes[index+8] & 0x80 == 0x80:
+                        data2 = int(self.bytes[index+8] ^ 0xff) << 8 | int(self.bytes[index+9] ^ 0xff)
+                        data2 *= -1
+                    else:
+                        data2 = (int(self.bytes[index+8]) << 8) | int(self.bytes[index+9])
+                    if self.bytes[index+10] & 0x80 == 0x80:
+                        data3 = int(self.bytes[index+10] ^ 0xff) << 8 | int(self.bytes[index+11] ^ 0xff)
+                        data3 *= -1
+                    else:
+                        data3 = (int(self.bytes[index+10]) << 8) | int(self.bytes[index+11])
+                    if self.bytes[index+12] & 0x80 == 0x80:
+                        data4 = int(self.bytes[index+12] ^ 0xff) << 8 | int(self.bytes[index+13] ^ 0xff)
+                        data4 *= -1
+                    else:
+                        data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
                     print '    Command : Update sensor value (%d, %d, %d, %d)' % (data1, data2, data3, data4)
                     device_info.append(data1)  # 5: int data 1
                     device_info.append(data2)  # 6: int data 2
@@ -149,10 +166,28 @@ class SerialThread(threading.Thread):
                     self.bytes = list()
                 # control signal response
                 elif command == CMD_CONTROL:
-                    data1 = (int(self.bytes[index+6]) << 8) | int(self.bytes[index+7])
-                    data2 = (int(self.bytes[index+8]) << 8) | int(self.bytes[index+9])
-                    data3 = (int(self.bytes[index+10]) << 8) | int(self.bytes[index+11])
-                    data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
+                    data1, data2, data3, data4 = 0x0000,0x0000,0x0000,0x0000
+                    # you have to check negative value
+                    if self.bytes[index+6] & 0x80 == 0x80:
+                        data1 = int(self.bytes[index+6] ^ 0xff) << 8 | int(self.bytes[index+7] ^ 0xff)
+                        data1 *= -1
+                    else:
+                        data1 = (int(self.bytes[index+6]) << 8) | int(self.bytes[index+7])
+                    if self.bytes[index+8] & 0x80 == 0x80:
+                        data2 = int(self.bytes[index+8] ^ 0xff) << 8 | int(self.bytes[index+9] ^ 0xff)
+                        data2 *= -1
+                    else:
+                        data2 = (int(self.bytes[index+8]) << 8) | int(self.bytes[index+9])
+                    if self.bytes[index+10] & 0x80 == 0x80:
+                        data3 = int(self.bytes[index+10] ^ 0xff) << 8 | int(self.bytes[index+11] ^ 0xff)
+                        data3 *= -1
+                    else:
+                        data3 = (int(self.bytes[index+10]) << 8) | int(self.bytes[index+11])
+                    if self.bytes[index+12] & 0x80 == 0x80:
+                        data4 = int(self.bytes[index+12] ^ 0xff) << 8 | int(self.bytes[index+13] ^ 0xff)
+                        data4 *= -1
+                    else:
+                        data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
                     print '    Command : result of control request (%d, %d, %d, %d)' % (data1, data2, data3, data4)
                     device_info.append(data1)  # int data 1
                     device_info.append(data2)  # int data 2
@@ -198,30 +233,70 @@ class SerialThread(threading.Thread):
 
     def send(self, cat1, cat2, devid, command, data1, data2, data3, data4):
         barray = bytearray([OUT_START1, OUT_START2, cat1, cat2, devid, command])
-        barray.append(data1 >> 8)
-        barray.append(data1)
-        barray.append(data2 >> 8)
-        barray.append(data2)
-        barray.append(data3 >> 8)
-        barray.append(data3)
-        barray.append(data4 >> 8)
-        barray.append(data4)
+        if data1 < 0:
+            positive = ~(data1*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data1 >> 8) & 0xff)
+            barray.append(data1 & 0xff)
+        if data2 < 0:
+            positive = ~(data2*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data2 >> 8) & 0xff)
+            barray.append(data2 & 0xff)
+        if data3 < 0:
+            positive = ~(data3*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data3 >> 8) & 0xff)
+            barray.append(data3 & 0xff)
+        if data4 < 0:
+            positive = ~(data4*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data4 >> 8) & 0xff)
+            barray.append(data4 & 0xff)
         barray.append(OUT_END)
         #print array.array('B', barray).tostring()
-        print ':'.join(format(x, '02x') for x in barray)
+        #print ':'.join(format(x, '02x') for x in barray)
         self.ser.write(barray)
         return
 
     def send_control_signal(self, cat1, cat2, devid, data1, data2, data3, data4):
         barray = bytearray([OUT_START1, OUT_START2, cat1, cat2, devid, 0x81])
-        barray.append(data1 >> 8)
-        barray.append(data1)
-        barray.append(data2 >> 8)
-        barray.append(data2)
-        barray.append(data3 >> 8)
-        barray.append(data3)
-        barray.append(data4 >> 8)
-        barray.append(data4)
+        if data1 < 0:
+            positive = ~(data1*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data1 >> 8) & 0xff)
+            barray.append(data1 & 0xff)
+        if data2 < 0:
+            positive = ~(data2*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data2 >> 8) & 0xff)
+            barray.append(data2 & 0xff)
+        if data3 < 0:
+            positive = ~(data3*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data3 >> 8) & 0xff)
+            barray.append(data3 & 0xff)
+        if data4 < 0:
+            positive = ~(data4*-1) | 0x8000
+            barray.append((positive >> 8) & 0xff)
+            barray.append(positive & 0xff)
+        else:
+            barray.append((data4 >> 8) & 0xff)
+            barray.append(data4 & 0xff)
         barray.append(OUT_END)
         #print array.array('B', barray).tostring()
         print ':'.join(format(x, '02x') for x in barray)

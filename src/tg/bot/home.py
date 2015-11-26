@@ -16,6 +16,7 @@ import CairoPlot
 import cairo
 import math
 import subprocess
+from decimal import *
 
 from db_helper import DBHelper
 from serial_thread import SerialThread
@@ -84,7 +85,7 @@ send_queue = Queue.Queue()
 # Not implemented yet!!
 #@bot.message_handler(commands=['record', 'rec'])
 #def cctv_off(message):
-#    bot.reply_to(message, 'Sorry, not implemented yet...')
+#    send_chat(message, 'Sorry, not implemented yet...')
 
 
 # Nomal text handler
@@ -97,55 +98,63 @@ def echo_all(message):
     # update chat id
     if CHAT_ID == '':
         CHAT_ID = message.chat.id
+
+    parseCommand(message, message.text)
+    pass
+
+# Parse command
+def parseCommand(message, str_cmd):
+    global is_cctv_active
+    global CHAT_ID
+    global cctv_url
+
     # split message
-    cmd = message.text.strip().split(' ')
+    cmd = str_cmd.strip().split(' ')
     
     # Bot check command
     if cmd[0] == 'hello' or cmd[0] == 'hi' or cmd[0] == '하이' or cmd[0] == '안녕':
-        bot.reply_to(message, msg_welcome())
-
+        send_chat(message, msg_welcome())
     # Ping test
     elif cmd[0] == 'help' or cmd[0] == '도움말':
-        bot.reply_to(message, msg_help_text())
+        send_chat(message, msg_help_text())
 
     # Ping test
     elif cmd[0] == 'ping' or cmd[0] == '핑':
         # extract parameter
         # send a data1 data2 data3 data4 : a=device number, data1 ~ data4: data to send to remote
         if len(cmd) < 2:
-            bot.reply_to(message, msg_devnum_error())
+            send_chat(message, msg_devnum_error())
             return
         devnum = -1
         if cmd[1].isdigit():
             devnum = int(cmd[1])
         else:
-            bot.reply_to(message, msg_devnum_error())
+            send_chat(message, msg_devnum_error())
             return
         device = t_dev.get_device_at(devnum)
         if len(device) < 1:
-            bot.reply_to(message, msg_device_not_found() + ' ' + str(devnum))
-            return;
+            send_chat(message, msg_device_not_found() + ' ' + str(devnum))
+            return
         t_ser.send(device[1], device[2], device[3], 0x01, 0, 0, 0, 0)        
 
     # Set language
     elif cmd[0] == 'lang' or cmd[0] == 'language' or cmd[0] == '언어':
         if len(cmd) < 2:
-            bot.reply_to(message, msg_current_lang() +': '+config.get_language())
+            send_chat(message, msg_current_lang() +': '+config.get_language())
             return
-
         if cmd[1] == 'en' or cmd[1] == 'english' or cmd[1] == '영어':
             config.set_language('en')
             set_proto_lang('en')
             set_msg_lang('en')
-            bot.reply_to(message, msg_lang_changed())
+            send_chat(message, msg_lang_changed())
             return
         elif cmd[1] == 'kr' or cmd[1] == 'korean' or cmd[1] == '한글' or cmd[1] == '한국어':
             config.set_language('kr')
             set_proto_lang('kr')
             set_msg_lang('kr')
-            bot.reply_to(message, msg_lang_changed())
+            send_chat(message, msg_lang_changed())
             return
-        bot.reply_to(message, msg_invalid_param())
+        send_chat(message, msg_invalid_param())
 
     # Deprecated!!! Do not use this
     # weather command
@@ -161,16 +170,16 @@ def echo_all(message):
 #        report_str += "'C, "
 #        report_str += str(w.get_humidity())
 #        report_str += "%"
-#        bot.reply_to(message, report_str)
+#        send_chat(message, report_str)
 
     # cctv command
     elif cmd[0] == 'cctv' or cmd[0] == 'cam' or cmd[0] == '캠':
         if len(cmd) < 2:
-            bot.reply_to(message, msg_invalid_param())
+            send_chat(message, msg_invalid_param())
             return
         if cmd[1] == 'on' or cmd[1] == '온':
             if is_cctv_active:
-                bot.reply_to(message, msg_cctv_already_on() + ' ' + cctv_url)
+                send_chat(message, msg_cctv_already_on() + ' ' + cctv_url)
                 return
             else:
                 #if cctv_url == '':
@@ -178,18 +187,18 @@ def echo_all(message):
                 #    cctv_url += subprocess.check_output('wget -q http://ip.kiduk.kr && more index.html', shell=True)
                 #    cctv_url += ':' + cctv_port
                 os.system(cctv_start_cmd)
-                bot.reply_to(message, msg_cctv_on() + ' ' + cctv_url)
+                send_chat(message, msg_cctv_on() + ' ' + cctv_url)
                 is_cctv_active = True
         elif cmd[1] == 'off' or cmd[1] == '오프':
             os.system(cctv_stop_cmd)
-            bot.reply_to(message, msg_cctv_off())
+            send_chat(message, msg_cctv_off())
             is_cctv_active = False
 
     # take a picture
     elif cmd[0] == 'pic' or cmd[0] == 'picture' or cmd[0] == '사진':
         # Stop cctv first
         if is_cctv_active:
-            bot.reply_to(message, msg_turnoff_cctv())
+            send_chat(message, msg_turnoff_cctv())
         os.system(cctv_stop_cmd)
         is_cctv_active = False
         time.sleep(1)  # Sleep for a while to avoid camera access error
@@ -203,9 +212,9 @@ def echo_all(message):
         # Send picture
         try:
             pic_file = open(picture_dir + pic_file_name, 'rb')
-            ret_msg = bot.send_photo(message.chat.id, pic_file)
+            ret_msg = send_photo(message, pic_file)  # message.chat.id
         except:
-            bot.reply_to(message, 'Cannot take a picture!!')
+            send_chat(message, 'Cannot take a picture!!')
 
     # Device command
     elif cmd[0] == 'dev' or cmd[0] == 'device' or cmd[0] == '장치':
@@ -228,7 +237,7 @@ def echo_all(message):
                 msg += msg_device_not_found()
             else:
                 msg += msg_devdesc_command()
-            bot.reply_to(message, msg)
+            send_chat(message, msg)
         # Device - Show device details
         elif cmd[1] == 'desc' or cmd[1] == 'detail' or cmd[1] == '상세':
             if len(cmd) >= 3:
@@ -269,7 +278,7 @@ def echo_all(message):
                     msg += "\n\n" + msg_ctrlsignal_desc()
                 else:
                     msg += msg_device_not_found()
-                bot.reply_to(message, msg)
+                send_chat(message, msg)
 
         # Device - Remove device
         elif cmd[1] == 'remove' or cmd[1] == 'del' or cmd[1] == 'delete' or cmd[1] == '삭제' or cmd[1] == '제거':
@@ -279,19 +288,19 @@ def echo_all(message):
                 if cmd[2].isdigit():
                     devnum = int(cmd[2])
                 else:
-                    bot.reply_to(message, msg_devnum_error())
+                    send_chat(message, msg_devnum_error())
                     return
                 if t_dev.delete_device_at(devnum):
-                    bot.reply_to(message, msg_device_removed() % devnum)
+                    send_chat(message, msg_device_removed() % devnum)
                 else:
-                    bot.reply_to(message, msg_device_remove_error() % devnum)
+                    send_chat(message, msg_device_remove_error() % devnum)
 
         # Device - Remove all devices
         elif cmd[1] == 'removeall' or cmd[1] == 'delall' or cmd[1] == 'deleteall' or cmd[1] == '모두삭제' or cmd[1] == '모두제거':
             if t_dev.delete_devices_all():
-                bot.reply_to(message, msg_every_device_removed())
+                send_chat(message, msg_every_device_removed())
             else:
-                bot.reply_to(message, msg_every_device_remove_error())
+                send_chat(message, msg_every_device_remove_error())
 
     # Get sensor value
     elif cmd[0] == 'sensor' or cmd[0] == 'data' or cmd[0] == 'print' or cmd[0] == '센서' or cmd[0] == '데이터' or cmd[0] == '출력':
@@ -305,13 +314,13 @@ def echo_all(message):
                 if cmd[2].isdigit():
                     devnum = int(cmd[2])
                 else:
-                    bot.reply_to(message, msg_devnum_error())
+                    send_chat(message, msg_devnum_error())
                     return
                 # delete from DB
                 if t_dev.delete_sensor_val(devnum, -1):
-                    bot.reply_to(message, msg_sensordata_removed() % devnum)
+                    send_chat(message, msg_sensordata_removed() % devnum)
                 else:
-                    bot.reply_to(message, msg_sensordata_remove_error() % devnum)
+                    send_chat(message, msg_sensordata_remove_error() % devnum)
 
             # Delete records older than user specified time (specified device)
             # time must be hour unit: delete all older than x hours
@@ -326,11 +335,11 @@ def echo_all(message):
                     newtime = int(time.time() - tparam*60*60)
                 # delete from DB
                 if t_dev.delete_sensor_val(devnum, newtime):
-                    bot.reply_to(message, msg_sensordata_removed() % devnum)
+                    send_chat(message, msg_sensordata_removed() % devnum)
                 else:
-                    bot.reply_to(message, msg_sensordata_remove_error() % devnum)
+                    send_chat(message, msg_sensordata_remove_error() % devnum)
             else:
-                bot.reply_to(message, msg_need_devnum())
+                send_chat(message, msg_need_devnum())
 
         # Delete sensor records all
         elif cmd[1] == 'removeall' or cmd[1] == 'delall' or cmd[1] == 'deleteall' or cmd[1] == '모두삭제' or cmd[1] == '모두제거':
@@ -345,9 +354,9 @@ def echo_all(message):
                     newtime = int(time.time() - tparam*60*60*1000)
             # delete from DB
             if t_dev.delete_sensor_all(newtime):
-                bot.reply_to(message, msg_every_sensordata_removed())
+                send_chat(message, msg_every_sensordata_removed())
             else:
-                bot.reply_to(message, msg_every_sensordata_remove_error())
+                send_chat(message, msg_every_sensordata_remove_error())
 
         # Show sensor records
         else:
@@ -372,9 +381,9 @@ def echo_all(message):
                 msg += "\n"
                 i = i + 1
             if i > 0:
-                bot.reply_to(message, msg)
+                send_chat(message, msg)
             else:
-                bot.reply_to(message, msg_no_matching_result())
+                send_chat(message, msg_no_matching_result())
 
     # Get sensor value and return with graph
     elif cmd[0] == 'graph' or cmd[0] == '그래프':
@@ -431,11 +440,11 @@ def echo_all(message):
             try:
                 # Send graph
                 pic_file = open(graph_dir + fname, 'rb')
-                ret_msg = bot.send_photo(message.chat.id, pic_file)
+                ret_msg = send_photo(message, pic_file)
             except:
-                bot.reply_to(message, msg_cannot_open_graph())
+                send_chat(message, msg_cannot_open_graph())
         else:
-            bot.reply_to(message, msg_no_matching_result())
+            send_chat(message, msg_no_matching_result())
 
     # Sends data to remote
     elif cmd[0] == 'ctrl' or cmd[0] == 'control' or cmd[0] == 'send' or cmd[0] == '제어' or cmd[0] == '전송':
@@ -447,37 +456,46 @@ def echo_all(message):
         if cmd[1].isdigit():
             devnum = int(cmd[1])
         else:
-            bot.reply_to(message, msg_wrong_device())
+            send_chat(message, msg_wrong_device())
             return;
         # get device info
         device = t_dev.get_device_at(devnum)
         if len(device) < 1:
-            bot.reply_to(message, msg_wrong_device())
+            send_chat(message, msg_wrong_device())
             return;
         data1 = 0
-        if cmd[2].isdigit():
+        # we have to catch the exception: negative value
+        if cmd[2][0] == '-' and cmd[2][1:].isdigit():
+            data1 = int(Decimal(cmd[2]))
+        elif cmd[2].isdigit():
             data1 = int(cmd[2])
         else:
-            bot.reply_to(message, msg_wrong_param1)
+            send_chat(message, msg_wrong_param1())
             return;
         data2 = 0
-        if len(cmd) > 3 and cmd[3].isdigit():
+        if len(cmd) > 3 and cmd[3][0] == '-' and cmd[3][1:].isdigit():
+            data2 = int(Decimal(cmd[3]))
+        elif len(cmd) > 3 and cmd[3].isdigit():
             data2 = int(cmd[3])
         else:
             data2 = 0
         data3 = 0
-        if len(cmd) > 4 and cmd[4].isdigit():
+        if len(cmd) > 4 and cmd[4][0] == '-' and cmd[4][1:].isdigit():
+            data3 = int(Decimal(cmd[4]))
+        elif len(cmd) > 4 and cmd[4].isdigit():
             data3 = int(cmd[4])
         else:
             data3 = 0
         data4 = 0
-        if len(cmd) > 5 and cmd[5].isdigit():
+        if len(cmd) > 5 and cmd[5][0] == '-' and cmd[5][1:].isdigit():
+            data4 = int(Decimal(cmd[5]))
+        elif len(cmd) > 5 and cmd[5].isdigit():
             data4 = int(cmd[5])
         else:
             data4 = 0
         # send device control signal to remote
         t_ser.send_control_signal(device[1], device[2], device[3], data1, data2, data3, data4)
-        bot.reply_to(message, msg_sent_signal() % devnum)
+        send_chat(message, msg_sent_signal() % devnum)
 
     # Make notification setting
     elif cmd[0] == 'noti' or cmd[0] == 'notification' or cmd[0] == '알림':
@@ -522,25 +540,25 @@ def echo_all(message):
                 count += 1
                 strmsg += '\n'
             if count > 0:
-                bot.reply_to(message, strmsg)
+                send_chat(message, strmsg)
             else:
-                bot.reply_to(message, msg_no_noti())
+                send_chat(message, msg_no_noti())
             # End of 'noti' command
             return
 
         # Delete notification
         elif cmd[1] == 'delete' or cmd[1] == 'del' or cmd[1] == '삭제' or cmd[1] == '제거':
             if len(cmd) < 3:
-                bot.reply_to(message, msg_type_noti_del_param())
+                send_chat(message, msg_type_noti_del_param())
                 return
             else:
                 if len(cmd) == 3 and cmd[2].isdigit():
                     # delete with noti-ID
                     noti_id = int(cmd[2])
                     if t_dev.delete_noti_with_id(noti_id):
-                        bot.reply_to(message, msg_noti_del_success())
+                        send_chat(message, msg_noti_del_success())
                     else:
-                        bot.reply_to(message, msg_noti_del_fail())
+                        send_chat(message, msg_noti_del_fail())
                     return
                 elif len(cmd) == 5 and cmd[2].isdigit() and cmd[3].isdigit() and cmd[4].isdigit():
                     # delete with device parameters
@@ -548,9 +566,9 @@ def echo_all(message):
                     cat2 = int(cmd[3])
                     devid = int(cmd[4])
                     if t_dev.delete_noti_with_param(cat1, cat2, devid):
-                        bot.reply_to(message, msg_noti_del_success())
+                        send_chat(message, msg_noti_del_success())
                     else:
-                        bot.reply_to(message, msg_noti_del_fail())
+                        send_chat(message, msg_noti_del_fail())
                     return
                 else:
                     # delete with name
@@ -558,26 +576,26 @@ def echo_all(message):
                     for index in range(2, len(cmd)):
                         noti_name += cmd[index]
                     if t_dev.delete_noti_with_name(noti_name):
-                        bot.reply_to(message, msg_noti_del_success())
+                        send_chat(message, msg_noti_del_success())
                     else:
-                        bot.reply_to(message, msg_noti_del_fail())
+                        send_chat(message, msg_noti_del_fail())
                     return
 
         # Add notification
         elif cmd[1] == 'add' or cmd[1] == '추가':
             if len(cmd) < 4:
-                bot.reply_to(message, msg_add_noti_param())
+                send_chat(message, msg_add_noti_param())
                 return
             devnum = -1
             if cmd[2].isdigit():
                 devnum = int(cmd[2])
             else:
-                bot.reply_to(message, msg_add_noti_param())
+                send_chat(message, msg_add_noti_param())
                 return
             # search device info
             cat1, cat2, devid = t_dev.get_ids_at(devnum)
             if cat1 < 0 or cat2 < 0 or devid < 0:
-                bot.reply_to(message, msg_wrong_device())
+                send_chat(message, msg_wrong_device())
                 return
             noti = []
             noti.append(-1)
@@ -592,7 +610,7 @@ def echo_all(message):
             # parse data1
             datanum, compcode, targetnum = parse_comp_str(cmd[3])
             if datanum < 1 or compcode < 1:
-                # bot.reply_to(message, msg_add_noti_param()+' (data1 error)')
+                # send_chat(message, msg_add_noti_param()+' (data1 error)')
                 pass
             elif datanum == 1:
                 compcode1 = compcode
@@ -614,7 +632,7 @@ def echo_all(message):
             if len(cmd) > 4:
                 datanum, compcode, targetnum = parse_comp_str(cmd[4])
                 if datanum < 1 or compcode < 1:
-                    # bot.reply_to(message, msg_add_noti_param()+' (data2 error)')
+                    # send_chat(message, msg_add_noti_param()+' (data2 error)')
                     pass
                 elif datanum == 1:
                     compcode1 = compcode
@@ -636,7 +654,7 @@ def echo_all(message):
             if len(cmd) > 5:
                 datanum, compcode, targetnum = parse_comp_str(cmd[5])
                 if datanum < 1 or compcode < 1:
-                    # bot.reply_to(message, msg_add_noti_param()+' (data4 error)')
+                    # send_chat(message, msg_add_noti_param()+' (data4 error)')
                     pass
                 elif datanum == 1:
                     compcode1 = compcode
@@ -658,7 +676,7 @@ def echo_all(message):
             if len(cmd) > 6:
                 datanum, compcode, targetnum = parse_comp_str(cmd[6])
                 if datanum < 1 or compcode < 1:
-                    # bot.reply_to(message, msg_add_noti_param()+' (data4 error)')
+                    # send_chat(message, msg_add_noti_param()+' (data4 error)')
                     pass
                 if datanum == 1:
                     compcode1 = compcode
@@ -677,7 +695,7 @@ def echo_all(message):
                     targetnum4 = targetnum
                     pcount += 1
             if pcount < 1:
-                bot.reply_to(message, msg_invalid_noti_cmd())
+                send_chat(message, msg_invalid_noti_cmd())
                 return
             # assign parsed parameters
             noti.append(compcode1)
@@ -693,12 +711,100 @@ def echo_all(message):
             noti.append('Noti' + str(cur.tm_mon) + str(cur.tm_mday) + str(cur.tm_hour) + str(cur.tm_min) + str(cur.tm_sec))
             # push to DB and cached list
             if t_dev.add_noti(noti):
-                bot.reply_to(message, msg_add_noti_success())
+                send_chat(message, msg_add_noti_success())
             else:
-                bot.reply_to(message, msg_add_noti_failed())
+                send_chat(message, msg_add_noti_failed())
         # Invalid notification command
         else:
-            bot.reply_to(message, msg_invalid_noti_cmd())
+            send_chat(message, msg_invalid_noti_cmd())
+
+    # Make macro
+    elif cmd[0] == 'macro' or cmd[0] == '매크로':
+        # Show macro list
+        if len(cmd) < 2:
+            strmsg = ''
+            macros = t_dev.get_macro_list()
+            count = 0
+            for macro in macros:
+                strmsg += msg_macro() + ' ID = ' + str(macro[0]) + '\n'
+                strmsg += '-> If ' + msg_noti() + ' ID = ' + str(macro[1]) + ', Do : '
+                strmsg += macro[6] + '\n'
+                count += 1
+            if count > 0:
+                send_chat(message, strmsg)
+            else:
+                strmsg += '\n'
+                send_chat(message, msg_no_macro())
+            # End of 'macro' command
+            return
+
+        # Delete notification
+        elif cmd[1] == 'delete' or cmd[1] == 'del' or cmd[1] == '삭제' or cmd[1] == '제거':
+            if len(cmd) < 3:
+                send_chat(message, msg_type_macro_del_param())
+                return
+            else:
+                if len(cmd) == 3 and cmd[2].isdigit():
+                    # delete with macro-ID
+                    macro_id = int(cmd[2])
+                    if t_dev.delete_macro_with_id(macro_id):
+                        send_chat(message, msg_macro_del_success())
+                    else:
+                        send_chat(message, msg_macro_del_fail())
+                    return
+                elif len(cmd) == 5 and cmd[2].isdigit() and cmd[3].isdigit() and cmd[4].isdigit():
+                    # delete with device parameters
+                    cat1 = int(cmd[2])
+                    cat2 = int(cmd[3])
+                    devid = int(cmd[4])
+                    if t_dev.delete_macro_with_param(cat1, cat2, devid):
+                        send_chat(message, msg_macro_del_success())
+                    else:
+                        send_chat(message, msg_macro_del_fail())
+                    return
+                else:
+                    # cannot delete macro
+                    send_chat(message, msg_macro_del_fail())
+                    return
+
+        # Add notification
+        elif cmd[1] == 'add' or cmd[1] == '추가':
+            if len(cmd) < 4:
+                send_chat(message, msg_add_macro_param())
+                return
+            noti_num = -1
+            if cmd[2].isdigit():
+                noti_num = int(cmd[2])
+            else:
+                send_chat(message, msg_add_macro_param())
+                return
+            # search device info
+            noti = t_dev.get_noti_with_id(noti_num)
+            if len(noti) < 1:
+                send_chat(message, msg_invalid_noti_id())
+                return
+            cat1 = noti[1]
+            cat2 = noti[2]
+            devid = noti[3]
+            if cat1 < 0 or cat2 < 0 or devid < 0:
+                send_chat(message, msg_wrong_device())
+                return
+            str_cmd = ""
+            for index in range(3, len(cmd)):
+                str_cmd += cmd[index] + ' '
+            str_cmd.strip()
+            a_macro = []
+            a_macro.append(-1)      # id
+            a_macro.append(noti_num)# noti id
+            a_macro.append(cat1)    # cat1
+            a_macro.append(cat2)    # cat2
+            a_macro.append(devid)  # device ID
+            a_macro.append(time.time())  # updated
+            a_macro.append(str_cmd) # command
+            if t_dev.add_macro(a_macro):
+                send_chat(message, msg_add_macro_success())
+            else:
+                send_chat(message, msg_add_macro_fail())
 
     # End of echo_all(message)
     pass
@@ -729,7 +835,7 @@ def incoming_cmd_callback(recv):
             msg += ", "+msg_category()+"2=" + str(device[2])
             msg += ", ID=" + str(device[3])
             msg += "\n\n" + msg_recv_ping_response()
-            bot.send_message(CHAT_ID, msg)
+            send_chat(None, msg)
         elif recv[4] == 129: # 0x81 : Control signal response
             # get matching device
             device = t_dev.get_device(recv[1], recv[2], recv[3])
@@ -758,16 +864,17 @@ def incoming_cmd_callback(recv):
             msg += get_cmd_name(device[11])
             msg += "="
             msg += str(recv[8])
-            bot.send_message(CHAT_ID, msg)
+            send_chat(None, msg)
     # End of incoming_cmd_callback()
     return
 
 
 CALLBACK_TYPE_NOTI = 1
+CALLBACK_TYPE_MACRO = 2
 
-def device_thread_callback(type, recv):
-    msg = ''
+def device_thread_callback(type, recv, command):
     if type == CALLBACK_TYPE_NOTI:
+        msg = ''
         msg += recv[13]
         msg += ", " + msg_location() + "="
         msg += recv[14]
@@ -775,9 +882,25 @@ def device_thread_callback(type, recv):
         msg += ", " + msg_category() +"2=" + str(recv[2])
         msg += ", ID=" + str(recv[3])
         msg += "\n\n" + msg_noti_received()
-        bot.send_message(CHAT_ID, msg)
+        send_chat(None, msg)
+    elif type == CALLBACK_TYPE_MACRO:
+        parseCommand(None, command)
+        print '    macro command = ' + command
     # End of device_thread_callback()
     return
+
+def send_chat(message, str_msg):
+    if message is None:
+        bot.send_message(CHAT_ID, str_msg)
+    else:
+        bot.reply_to(message, str_msg)
+    return
+
+def send_photo(message, file):
+    if message is None:
+        ret_msg = bot.send_photo(CHAT_ID, file)
+    else:
+        ret_msg = bot.send_photo(message.chat.id, file)
 
 
 
@@ -819,6 +942,7 @@ if __name__ == '__main__':
         # Start worker thread
         t_dev.load_devices()
         t_dev.load_noti()
+        t_dev.load_macro()
         t_dev.setDaemon(True)
         t_dev.start()
         # Start serial monitor thread

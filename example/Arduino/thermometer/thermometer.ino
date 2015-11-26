@@ -38,7 +38,7 @@ SoftwareSerial hc11(2, 3);    // Write HC-11's TX, RX
 
 // Communication (adjust as you need)
 #define REGISTRATION_INTERVAL 1800000
-#define SENDING_INTERVAL 600000
+unsigned long SENDING_INTERVAL = 600000L;
 unsigned long prevReadTime = 0;
 unsigned long prevRegistrationTime = 0;
 
@@ -94,8 +94,8 @@ void setup() {
   pinMode(LEDPIN, OUTPUT);
   randomSeed(analogRead(0));  // for test, I'll touch the value slightly
   
-  // Send device registration command to server 3 times
-  for(int i=0; i<3; i++) {
+  // Send device registration command to server 2 times
+  for(int i=0; i<2; i++) {
     sendRegistration();
     prevRegistrationTime = millis();
     delay(3000);
@@ -148,7 +148,7 @@ void loop() {
   
   if (hc11.available()>0)  {
     // Get incoming byte
-    char in_byte = 0;
+    char in_byte = 0x00;
     in_byte = hc11.read();
     command = parseCommand(in_byte);
   }  // End of if (hcSerial.available()>0)
@@ -190,10 +190,10 @@ int parseCommand(char in_byte) {
       
       if(Buffer[14] == CHECK_END1) {   // Check validity
         cmd = int(byte(Buffer[5]));    // to avoid negative value, convert into byte and int again
-        value1 = (Buffer[6] << 8) | Buffer[7];
-        value2 = (Buffer[8] << 8) | Buffer[9];
-        value3 = (Buffer[10] << 8) | Buffer[11];
-        value4 = (Buffer[12] << 8) | Buffer[13];
+        value1 = (int(byte(Buffer[6])) << 8) | int(byte(Buffer[7]));
+        value2 = (int(byte(Buffer[8])) << 8) | int(byte(Buffer[9]));
+        value3 = (int(byte(Buffer[10])) << 8) | int(byte(Buffer[11]));
+        value4 = (int(byte(Buffer[12])) << 8) | int(byte(Buffer[13]));
       }
       Serial.println(cmd);
       Serial.println("completed.");
@@ -232,7 +232,11 @@ void processCommand(int cmd) {
     } else if(value1 == 0) {
       digitalWrite(LEDPIN, LOW);
     }
-    sendControlAccepted(value1, 0, 0, 0);
+    // hidden command : change sensor update interval with 4th control signal
+    if(value4 > 0) {
+      SENDING_INTERVAL = (unsigned long)value4*1000L;
+    }
+    sendControlAccepted(value1, 0, 0, value4);
     break;
   default:
     break;

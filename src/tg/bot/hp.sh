@@ -2,7 +2,7 @@
  
 HPPATH="/home/pi/tg/bot"
 HPBIN_PATH="/home/pi/tg/bot"
-HPBIN_NAME="python2.7 home.py"
+HPBIN_NAME="python home.py"
 HPBIN_CHECK="python"
  
  

@@ -5,6 +5,11 @@
 #  Young Bae Suh, godstale@hotmail.com
 ###########################################
 
+v0.5.3
+- add macro command
+- support negative integer
+- fix bug
+
 v0.5.2
 - change packet parsing routine (fix multi-line packet bug)
 - fix device list text

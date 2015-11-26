@@ -82,6 +82,20 @@ class DBHelper:
         temp3 VARCHAR(256)
         )"""
 
+    sql_macro_table = """CREATE TABLE macro (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        noti_id INT NOT NULL,
+        category1 INT,
+        category2 INT,
+        deviceid INT,
+        updated INT UNSIGNED,
+        command VARCHAR(256),
+        temp1 INT,
+        temp2 INT,
+        temp3 INT,
+        temp4 VARCHAR(256)
+        )"""
+
     def __init__(self, username, password, dbname):
         self.username = username
         self.password = password
@@ -107,6 +121,10 @@ class DBHelper:
             if retval < 1:
                 print '    Cannot find notifications table!!'
                 self.maketables(3)
+            retval = self.cursor.execute("SELECT 1 FROM information_schema.tables WHERE TABLE_NAME like 'macro'")
+            if retval < 1:
+                print '    Cannot find macro table!!'
+                self.maketables(4)
         except:
             print '    Error!! Cannot execute table check query!!'
         return retval
@@ -122,6 +140,9 @@ class DBHelper:
             elif ttype == 3:
                 print '    Making notifications table...'
                 self.cursor.execute(self.sql_noti_table)
+            elif ttype == 4:
+                print '    Making macro table...'
+                self.cursor.execute(self.sql_macro_table)
         except:
             print '    Error!! Cannot make tables!!'
             return False
@@ -133,6 +154,27 @@ class DBHelper:
         # execute query
         try:
             print sql_query
+            self.cursor.execute(sql_query)
+            results = self.cursor.fetchall()
+            return results
+        except:
+            print '    Cannot execute device select query!!!'
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            return []
+
+    def select_sensor_val(self, cat1, cat2, devid, count):
+        sql_query = "SELECT * FROM monitoring WHERE category1="
+        sql_query += str(cat1)
+        sql_query += " AND category2="
+        sql_query += str(cat2)
+        sql_query += " AND deviceid="
+        sql_query += str(devid)
+        sql_query += " ORDER BY id DESC LIMIT "
+        sql_query += str(count)
+        # execute query
+        try:
+            #print sql_query
             self.cursor.execute(sql_query)
             results = self.cursor.fetchall()
             return results
@@ -155,7 +197,20 @@ class DBHelper:
             print '    Cannot execute notification select query!!!'
             exc_type, exc_value, exc_traceback = sys.exc_info()
             print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
-            #dummy = list()
+            return []
+
+    def select_all_macro(self):
+        sql_query = "SELECT * FROM macro"
+        # execute query
+        try:
+            print sql_query
+            self.cursor.execute(sql_query)
+            results = self.cursor.fetchall()
+            return results
+        except:
+            print '    Cannot execute macro select query!!!'
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             return []
 
     def add_device(self, device, update):
@@ -321,6 +376,34 @@ class DBHelper:
             return False
         return True
 
+    def add_macro(self, macro):
+        sql_query = """INSERT INTO macro (noti_id, category1, category2, deviceid,
+                            updated, command) VALUES ("""
+        sql_query += str(macro[1])  # notification id
+        sql_query += ','
+        sql_query += str(macro[2])  # category 1
+        sql_query += ','
+        sql_query += str(macro[3])  # category 2
+        sql_query += ','
+        sql_query += str(macro[4])  # device ID
+        sql_query += ','
+        sql_query += str(macro[5])  # updated time
+        sql_query += ',"'
+        sql_query += str(macro[6])  # command
+        sql_query += '")'
+
+        # execute query
+        try:
+            #print sql_query
+            self.cursor.execute(sql_query)
+            self.db.commit()
+        except:
+            print '    Cannot execute macro insert query!!!'
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            self.db.rollback()
+            return False
+        return True
 
     def delete_device(self, cat1, cat2, devid):
         sql_query = "DELETE FROM devices WHERE category1="
@@ -371,28 +454,6 @@ class DBHelper:
             self.db.rollback()
             return False
         return True
-
-    def select_sensor_val(self, cat1, cat2, devid, count):
-        sql_query = "SELECT * FROM monitoring WHERE category1="
-        sql_query += str(cat1)
-        sql_query += " AND category2="
-        sql_query += str(cat2)
-        sql_query += " AND deviceid="
-        sql_query += str(devid)
-        sql_query += " ORDER BY id DESC LIMIT "
-        sql_query += str(count)
-        # execute query
-        try:
-            #print sql_query
-            self.cursor.execute(sql_query)
-            results = self.cursor.fetchall()
-            return results
-        except:
-            print '    Cannot execute device select query!!!'
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
-            #dummy = list()
-            return []
 
     def delete_sensor_val(self, cat1, cat2, devid, timestamp):
         sql_query = "DELETE FROM monitoring WHERE category1="
@@ -485,6 +546,61 @@ class DBHelper:
             self.db.commit()
         except:
             print '    Cannot execute noti delete (name) query!!!'
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            self.db.rollback()
+            return False
+        return True
+
+    def delete_macro_with_id(self, id):
+        sql_query = "DELETE FROM macro WHERE id="
+        sql_query += str(id)
+
+        # execute query
+        try:
+            #print sql_query
+            self.cursor.execute(sql_query)
+            self.db.commit()
+        except:
+            print '    Cannot execute macro delete (id) query!!!'
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            self.db.rollback()
+            return False
+        return True
+
+    def delete_macro_with_nid(self, nid):
+        sql_query = "DELETE FROM macro WHERE noti_id="
+        sql_query += str(nid)
+
+        # execute query
+        try:
+            #print sql_query
+            self.cursor.execute(sql_query)
+            self.db.commit()
+        except:
+            print '    Cannot execute macro delete (noti id) query!!!'
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            self.db.rollback()
+            return False
+        return True
+
+    def delete_macro_with_param(self, cat1, cat2, devid):
+        sql_query = "DELETE FROM macro WHERE category1="
+        sql_query += str(cat1)
+        sql_query += " AND category2="
+        sql_query += str(cat2)
+        sql_query += " AND deviceid="
+        sql_query += str(devid)
+
+        # execute query
+        try:
+            #print sql_query
+            self.cursor.execute(sql_query)
+            self.db.commit()
+        except:
+            print '    Cannot execute macro delete (device) query!!!'
             exc_type, exc_value, exc_traceback = sys.exc_info()
             print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             self.db.rollback()

@@ -238,9 +238,9 @@ def msg_no_noti():
 
 def msg_type_noti_del_param():
     if msg_lang == 'kr':
-        return '알림 삭제에 필요한 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 삭제할 수 있습니다.\n알림 삭제 (알림ID 또는 이름)\n알림 삭제 (분류1) (분류2) (장치ID)'
+        return '알림 삭제에 필요한 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 삭제할 수 있습니다.\n알림 삭제 (알림ID)\n알림 삭제 (분류1) (분류2) (장치ID)'
     else:
-        return 'Invalid parameters!! Use command like below:\nnoti del (noti-ID or noti-name)\nnoti del (category1) (category2) (device ID)'
+        return 'Invalid parameters!! Use command like below:\nnoti del (noti-ID)\nnoti del (category1) (category2) (device ID)'
 
 def msg_noti_del_success():
     if msg_lang == 'kr':
@@ -289,6 +289,62 @@ def msg_invalid_noti_cmd():
         return '알림 커맨드에 오류가 있습니다!!'
     else:
         return 'Invalid notification command!!'
+
+def msg_macro():
+    if msg_lang == 'kr':
+        return '매크로'
+    else:
+        return 'Macro'
+
+def msg_no_macro():
+    if msg_lang == 'kr':
+        return '매크로 설정이 없습니다.'
+    else:
+        return 'Macro setting is not exist.'
+
+def msg_type_macro_del_param():
+    if msg_lang == 'kr':
+        return '매크로 삭제에 필요한 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 삭제할 수 있습니다.\n매크로 삭제 (매크로ID)\n매크로 삭제 (분류1) (분류2) (장치ID)'
+    else:
+        return 'Invalid parameters!! Use command like below:\nmacro del (macro-ID)\nmacro del (category1) (category2) (device ID)'
+
+def msg_macro_del_success():
+    if msg_lang == 'kr':
+        return '매크로를 삭제 했습니다.'
+    else:
+        return 'Removed macro.'
+
+def msg_macro_del_fail():
+    if msg_lang == 'kr':
+        return '매크로 삭제에 실패했습니다!!'
+    else:
+        return 'Cannot remove macro!!'
+
+def msg_add_macro_param():
+    if msg_lang == 'kr':
+        return '매크로 추가 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 추가할 수 있습니다.\n\n매크로 추가 (알림넘버) (명령문)\n\n예) 매크로 추가 1 제어 1 10'
+    else:
+        return 'Invalid parameters!! Use command like below:\n\nmacro add (noti ID) (command)\n\nEx) macro add 1 send 1 10'
+
+def msg_invalid_noti_id():
+    if msg_lang == 'kr':
+        return '잘못된 알림 ID 입니다!!'
+    else:
+        return 'Invalid notification ID!!'
+
+def msg_add_macro_success():
+    if msg_lang == 'kr':
+        return '매크로를 추가 했습니다.'
+    else:
+        return 'Added macro.'
+
+def msg_add_macro_fail():
+    if msg_lang == 'kr':
+        return '매크로 추가에 실패했습니다!!'
+    else:
+        return 'Cannot add macro!!'
+
+
 
 def msg_help_text():
     if msg_lang == 'kr':
@@ -345,7 +401,17 @@ noti add (장치넘버) (조건식1) [조건식2] ... [조건식4]
 data1>=1 data2<=99 data3!=0 data4==1
 
 noti del (알림ID)
-지정한 알림ID 에 해당하는 설정을 삭제. 알림ID 대신 분류1, 분류2, 장치ID 를 사용할 경우 해당 장치의 알림 모두를 삭제. 또는 알림 설정의 이름으로 삭제도 가능."""
+지정한 알림ID 에 해당하는 설정을 삭제. 알림ID 대신 분류1, 분류2, 장치ID 를 사용할 경우 해당 장치의 알림 모두를 삭제. 알림 삭제시 연결된 매크로도 모두 삭제.
+
+macro
+현재 설정된 매크로를 모두 보여줌.
+
+macro add (알림ID) (명령어)
+특정 알림이 실행될 때 챗을 보내는대신 명령어를 실행.\n예) macro add 1 pic => 알림 1 조건에 맞는 센서값이 들어오면 사진 촬영 후 전송
+
+macro del (매크로ID)
+지정한 매크로 삭제
+"""
         return msg
     else:
         msg = """hello
@@ -401,7 +467,17 @@ noti add (device_number) (comp_str1) [comp_str1] ... [comp_str1]
 data1>=1 data2<=99 data3!=0 data4==1
 
 noti del (noti_ID)
-: Remove notification setting."""
+: Remove notification setting.
+
+macro
+Show every macro.
+
+macro add (noti_ID) (command)
+Add a macro.\nex) macro add 1 pic => Take a picture when HomePy enables noti 1.
+
+macro del (macro_ID)
+delete a macro.
+"""
         return msg
 
 

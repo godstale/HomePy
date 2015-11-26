@@ -15,6 +15,7 @@ from hc_protocol import *
 ############################################
 
 CALLBACK_TYPE_NOTI = 1
+CALLBACK_TYPE_MACRO = 2
 
 class DeviceManagerThread(threading.Thread):
     quit = False
@@ -26,6 +27,7 @@ class DeviceManagerThread(threading.Thread):
         threading.Thread.__init__(self)
         self.devices = list()
         self.noti = list()
+        self.macro = list()
         self.db = db
         self.recv_queue = recv_queue
         self.send_queue = send_queue
@@ -51,11 +53,18 @@ class DeviceManagerThread(threading.Thread):
                         self.db.add_device(recv, found)
 
                     elif recv[4] == 81: # 0x51 : Update sensor data
-                        # push to DB
-                        self.db.add_monitoring_data(recv)
-                        # check if notification is enabled
-                        if self.check_noti(recv):
-                            self.callback(CALLBACK_TYPE_NOTI, recv)
+                        # check if device is exist
+                        temp = self.get_device(recv[1], recv[2], recv[3])
+                        if len(temp) > 0:
+                            # push to DB
+                            self.db.add_monitoring_data(recv)
+                            # check if notification is enabled
+                            noti_ids = self.check_noti(recv)
+                            if len(noti_ids) > 0:
+                                count = self.check_macro(noti_ids)    # check macro
+                                print '    Found %d macro...' % count
+                                if count < 1:
+                                    self.callback(CALLBACK_TYPE_NOTI, recv, "")  # send notification
 
                     elif recv[4] == 1: # 0x01 : Ping response
                         print ' '
@@ -302,6 +311,8 @@ class DeviceManagerThread(threading.Thread):
     # Delete noti with id
     def delete_noti_with_id(self, id):
         if self.db.delete_noti_with_id(id):
+            # delete macro
+            self.delete_macro_with_nid(id)
             self.refresh_noti_list()
             return True
         return False
@@ -309,21 +320,28 @@ class DeviceManagerThread(threading.Thread):
     # Delete noti with device parameters
     def delete_noti_with_param(self, cat1, cat2, devid):
         if self.db.delete_noti_with_param(cat1, cat2, devid):
+            # delete macro
+            self.delete_macro_with_param(cat1, cat2, devid)
             self.refresh_noti_list()
             return True
         return False
 
+    # Deprecated!! Do not use this!!
     # Delete noti with name
-    def delete_noti_with_name(self, name):
-        if self.db.delete_noti_with_name(name):
-            self.refresh_noti_list()
-            return True
-        return False
+    #def delete_noti_with_name(self, name):
+    #    if self.db.delete_noti_with_name(name):
+    #        # delete macro
+    #        self.db.delete_noti_with_name(name)
+    #        self.refresh_noti_list()
+    #        return True
+    #    return False
+
 
     # Check if notification is available or not
     def check_noti(self, recv):
-        is_ok = False
+        notis = list()
         for row in self.noti:
+            # compare category1, category2, device id
             if recv[1] == row[1] and recv[2] == row[2] and recv[3] == row[3]:
                 noti_on = False
                 # check data1
@@ -451,9 +469,86 @@ class DeviceManagerThread(threading.Thread):
                     else:
                         continue
             if noti_on:
-                is_ok = True
+                notis.append(row[0])    # Add noti id
 
-        return is_ok
+        return notis
+
+    # Check if macro is available or not
+    def check_macro(self, noti_ids):
+        count = 0
+        for noti_id in noti_ids:
+            for row in self.macro:
+                # compare notification id
+                if noti_id == row[1]:
+                    self.callback(CALLBACK_TYPE_MACRO, None, row[6])  # process command
+                    count += 1
+        return count
+
+    # Load macro from DB
+    def load_macro(self):
+        results = self.db.select_all_macro()
+        for row in results:
+            a_macro = []
+            a_macro.append(int(row[0]))    # id
+            a_macro.append(int(row[1]))    # noti id
+            a_macro.append(int(row[2]))    # cat1
+            a_macro.append(int(row[3]))    # cat2
+            a_macro.append(int(row[4]))    # device ID
+            a_macro.append(int(row[5]))    # updated
+            a_macro.append(row[6])    # command
+            self.add_macro_to_list(a_macro)
+
+    # Get all macro
+    def get_macro_list(self):
+        return self.macro
+
+    # Get macro with id
+    def get_macro_with_id(self, mid):
+        for item in self.macro:
+            if item[0] == mid:
+                return item
+        return []
+
+    # Refresh macro list
+    def refresh_macro_list(self):
+        self.macro = []
+        self.load_macro()
+
+    # Add macro to DB and update list
+    def add_macro(self, a_macro):
+        if self.insert_macro(a_macro):
+            self.refresh_macro_list()
+            return True
+        return False
+
+    # Add macro to list
+    def add_macro_to_list(self, a_macro):
+        self.macro.append(a_macro)
+
+    # Add macro to DB
+    def insert_macro(self, a_macro):
+        return self.db.add_macro(a_macro)
+
+    # Delete macro with id
+    def delete_macro_with_id(self, id):
+        if self.db.delete_macro_with_id(id):
+            self.refresh_macro_list()
+            return True
+        return False
+
+    # Delete macro with noti id
+    def delete_macro_with_nid(self, nid):
+        if self.db.delete_macro_with_nid(nid):
+            self.refresh_macro_list()
+            return True
+        return False
+
+    # Delete noti with device parameters
+    def delete_macro_with_param(self, cat1, cat2, devid):
+        if self.db.delete_macro_with_param(cat1, cat2, devid):
+            self.refresh_macro_list()
+            return True
+        return False
 
 
     # Exit thread
