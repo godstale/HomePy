@@ -22,7 +22,7 @@ def parse_comp_str(strcomp):
     if datanum < 1:
         # at lease one data field is needed
         return 0, 0, 0
-    print 'parsed data number'
+
     # find comparison operator
     compcode = 0
     targetnum = 0

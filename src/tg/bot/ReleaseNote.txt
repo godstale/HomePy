@@ -5,6 +5,12 @@
 #  Young Bae Suh, godstale@hotmail.com
 ###########################################
 
+v0.5.4
+- add timer command
+- define major structure as class
+- add remove picture, remove graph command (remove image file)
+- "remove noti with file name" is disabled
+
 v0.5.3
 - add macro command
 - support negative integer

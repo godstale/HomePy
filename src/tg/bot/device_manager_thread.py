@@ -8,7 +8,10 @@ import Queue
 import threading
 import time
 from hc_protocol import *
-
+from DeviceInfo import *
+from SensorInfo import *
+from MacroInfo import *
+from NotiInfo import *
 
 ############################################
 # Device Manager thread
@@ -20,7 +23,9 @@ CALLBACK_TYPE_MACRO = 2
 class DeviceManagerThread(threading.Thread):
     quit = False
     prev_db_clean_time = 0
+    prev_timer_proc = 0
     CLEANING_INTERVAL = 60*10    # do DB cleaning every 10 min
+    TIMER_CHECK_INTERVAL = 60    # do timer check every 1 min
     DEL_SENSOR_TIME = 3*24*60*60    # delete records older than 3 days
 
     def __init__(self, db, recv_queue, send_queue, callback):
@@ -39,46 +44,57 @@ class DeviceManagerThread(threading.Thread):
             # Get object from queue
             if self.recv_queue.empty() == False:
                 recv = self.recv_queue.get()
+                if not isinstance(recv, DeviceInfo):
+                    print 'Critical error!!! recv is not a DeviceInfo object!!!'
+                    # Send complete signal to queue
+                    self.recv_queue.task_done()
+                    continue
 
                 # Process received information
-                if recv[0] == 1:    # received packet
-                    if recv[4] == 17:  # 0x11 : Register device
+                if recv.objtype == 1:    # object type == from received packet
+                    if recv.cmd == 17:  # 0x11 : Register device
                         # find name with category1 and category2
-                        recv[13] = get_device_name(recv[1], recv[2])
+                        recv.name = get_device_name(recv.cat1, recv.cat2)
                         # set location name
-                        recv[14] = get_location_name(recv[3])
+                        recv.loc = get_location_name(recv.devid)
                         # update device list
                         found = self.update_device(recv)
                         # push to DB
                         self.db.add_device(recv, found)
 
-                    elif recv[4] == 81: # 0x51 : Update sensor data
+                    elif recv.cmd == 81: # 0x51 : Update sensor data
                         # check if device is exist
-                        temp = self.get_device(recv[1], recv[2], recv[3])
-                        if len(temp) > 0:
+                        temp = self.get_device(recv.cat1, recv.cat2, recv.devid)
+                        if temp is not None:
                             # push to DB
                             self.db.add_monitoring_data(recv)
                             # check if notification is enabled
                             noti_ids = self.check_noti(recv)
                             if len(noti_ids) > 0:
-                                count = self.check_macro(noti_ids)    # check macro
+                                count = self.check_macro(noti_ids)    # do macro
                                 print '    Found %d macro...' % count
                                 if count < 1:
                                     self.callback(CALLBACK_TYPE_NOTI, recv, "")  # send notification
 
-                    elif recv[4] == 1: # 0x01 : Ping response
-                        print ' '
+                    elif recv.cmd == 1: # 0x01 : Ping response
+                        print '    Received Ping response...'
 
-                    elif recv[4] == 129: # 0x81 : Control signal response
-                        print ' '
+                    elif recv.cmd == 129: # 0x81 : Control signal response
+                        print '    Received Control-Signal response...'
 
                 # Send complete signal to queue
                 self.recv_queue.task_done()
 
+            # Remove old data
             if self.prev_db_clean_time + self.CLEANING_INTERVAL < int(time.time()):
                 print '    Cleaning old data...'
                 self.prev_db_clean_time = int(time.time())
                 self.delete_sensor_all(self.DEL_SENSOR_TIME)
+
+            if self.prev_timer_proc + self.TIMER_CHECK_INTERVAL < int(time.time()):
+                print '    Check timer...'
+                self.prev_timer_proc = int(time.time())
+                self.check_timer_macro()
 
             if self.quit == True:
                 break;
@@ -91,23 +107,23 @@ class DeviceManagerThread(threading.Thread):
     def load_devices(self):
         results = self.db.select_all_device()
         for row in results:
-            device_info = []
-            device_info.append(1)    # queue item type
-            device_info.append(int(row[1]))  # cat1
-            device_info.append(int(row[2]))  # cat2
-            device_info.append(int(row[3]))  # device ID
-            device_info.append(0x11)  # command
-            device_info.append(int(row[7]))  # available cmd 1
-            device_info.append(int(row[11]))  # available cmd 1 - data type
-            device_info.append(int(row[8]))
-            device_info.append(int(row[12]))
-            device_info.append(int(row[9]))
-            device_info.append(int(row[13]))
-            device_info.append(int(row[10]))  # available cmd 4
-            device_info.append(int(row[14]))  # available cmd 4 - data type
-            device_info.append(row[4])  # name
-            device_info.append(row[5])  # location
-            device_info.append(row[6])  # timestamp
+            device_info = DeviceInfo()
+            device_info.objtype = 1    # queue item type
+            device_info.cat1 = int(row[1])  # cat1
+            device_info.cat2 = int(row[2])  # cat2
+            device_info.devid = int(row[3]) # device ID
+            device_info.cmd = 0x11  # command (set dummy value)
+            device_info.cmd1 = int(row[7])  # available cmd 1
+            device_info.cmd1dtype = int(row[11])  # available cmd 1 - data type
+            device_info.cmd2 = int(row[8])
+            device_info.cmd2dtype = int(row[12])
+            device_info.cmd3 = int(row[9])
+            device_info.cmd3dtype = int(row[13])
+            device_info.cmd4 = int(row[10])  # available cmd 4
+            device_info.cmd4dtype = int(row[14])  # available cmd 4 - data type
+            device_info.name = row[4]  # name
+            device_info.loc = row[5]  # location
+            device_info.time = int(row[6])  # timestamp
             self.add_device_to_list(device_info)
 
     # Get specified device info
@@ -115,24 +131,24 @@ class DeviceManagerThread(threading.Thread):
     def get_device_at(self, num):
         if len(self.devices) >= num and num > 0:
             return self.devices[num-1]
-        return []
+        return None
 
     # Get specified device info
     def get_device(self, cat1, cat2, did):
         for dev in self.devices:
-            if (dev[1] == cat1
-                    and dev[2] == cat2
-                    and dev[3] == did):
+            if (dev.cat1 == cat1
+                    and dev.cat2 == cat2
+                    and dev.devid == did):
                 return dev
-        return []
+        return None
 
     # Get specified device info
     # devnum is ordering number, not an array index
     def get_ids_at(self, devnum):
         if devnum > 0 and len(self.devices) >= devnum:
-            cat1 = self.devices[devnum-1][1]
-            cat2 = self.devices[devnum-1][2]
-            devid = self.devices[devnum-1][3]
+            cat1 = self.devices[devnum-1].cat1
+            cat2 = self.devices[devnum-1].cat2
+            devid = self.devices[devnum-1].devid
             return cat1, cat2, devid
         return -1,-1,-1
 
@@ -152,9 +168,9 @@ class DeviceManagerThread(threading.Thread):
     def update_device(self, device):
         found = 0
         for dev in self.devices:
-            if (dev[1] == device[1]
-                    and dev[2] == device[2] 
-                    and dev[3] == device[3]):
+            if (dev.cat1 == device.cat1
+                    and dev.cat2 == device.cat2
+                    and dev.devid == device.devid):
                 # replace previous dev info
                 self.devices[self.devices.index(dev)] = device
                 found = found + 1
@@ -199,26 +215,26 @@ class DeviceManagerThread(threading.Thread):
         infos = []
         # parse results
         for row in results:
-            info = []
+            info = SensorInfo()
             if int(row[4]) != 0:
                 is_found[0] == True
-            info.append(row[4])  # 0: int 1
+            info.data1 = row[4]  # 0: int 1
             if int(row[5]) != 0:
                 is_found[1] == True
-            info.append(int(row[5]))  # 1: int 2
+            info.data2 = int(row[5])  # 1: int 2
             if int(row[6]) != 0:
                 is_found[2] == True
-            info.append(int(row[6]))  # 2: int 3
+            info.data3 = int(row[6])  # 2: int 3
             if int(row[7]) != 0:
                 is_found[3] == True
-            info.append(int(row[7]))  # 3: int 4
+            info.data4 = int(row[7])  # 3: int 4
             if int(row[8]) != 0:
                 is_found[4] == True
-            info.append(int(row[8]))  # 4: float 1
+            info.fdata1 = int(row[8])  # 4: float 1
             if int(row[9]) != 0:
                 is_found[5] == True
-            info.append(int(row[9]))  # 5: float 2
-            info.append(int(row[10])) # 6: timestamp
+            info.fdata2 = int(row[9])  # 5: float 2
+            info.time = int(row[10])   # 6: timestamp
             infos.append(info)
         if is_found[0]:
             is_avail *= 2
@@ -252,21 +268,21 @@ class DeviceManagerThread(threading.Thread):
     def load_noti(self):
         results = self.db.select_all_noti()
         for row in results:
-            noti = []
-            noti.append(int(row[0]))    # id
-            noti.append(int(row[1]))    # cat1
-            noti.append(int(row[2]))    # cat2
-            noti.append(int(row[3]))    # device ID
-            noti.append(int(row[4]))    # comp 1
-            noti.append(int(row[5]))    # comp 2
-            noti.append(int(row[6]))    # comp 3
-            noti.append(int(row[7]))    # comp 4
-            noti.append(int(row[10]))   # data 1
-            noti.append(int(row[11]))   # data 2
-            noti.append(int(row[12]))   # data 3
-            noti.append(int(row[13]))   # data 4
-            noti.append(int(row[16]))   # updated time
-            noti.append(row[17])        # name
+            noti = NotiInfo()
+            noti.id = int(row[0])     # id
+            noti.cat1 = int(row[1])   # cat1
+            noti.cat2 = int(row[2])   # cat2
+            noti.devid = int(row[3])  # device ID
+            noti.comp1 = int(row[4])    # comp 1
+            noti.comp2 = int(row[5])    # comp 2
+            noti.comp3 = int(row[6])    # comp 3
+            noti.comp4 = int(row[7])    # comp 4
+            noti.data1 = int(row[10])   # data 1
+            noti.data2 = int(row[11])   # data 2
+            noti.data3 = int(row[12])   # data 3
+            noti.data4 = int(row[13])   # data 4
+            noti.time = int(row[16])   # updated time
+            noti.name = row[17]        # name
             self.add_noti_to_list(noti)
 
     # Get all notifications
@@ -276,15 +292,15 @@ class DeviceManagerThread(threading.Thread):
     # Get noti with id
     def get_noti_with_id(self, nid):
         for item in self.noti:
-            if item[0] == nid:
+            if item.id == nid:
                 return item
-        return []
+        return None
 
     # Get noti(s) with device parameters
     def get_noti_with_param(self, cat1, cat2, devid):
         notis = []
         for item in self.noti:
-            if item[1] == cat1 and item[2] == cat2 and item[3] == devid:
+            if item.cat1 == cat1 and item.cat2 == cat2 and item.devid == devid:
                 notis.append(item)
         return notis
 
@@ -326,161 +342,163 @@ class DeviceManagerThread(threading.Thread):
             return True
         return False
 
-    # Deprecated!! Do not use this!!
-    # Delete noti with name
-    #def delete_noti_with_name(self, name):
-    #    if self.db.delete_noti_with_name(name):
-    #        # delete macro
-    #        self.db.delete_noti_with_name(name)
-    #        self.refresh_noti_list()
-    #        return True
-    #    return False
-
-
     # Check if notification is available or not
     def check_noti(self, recv):
         notis = list()
         for row in self.noti:
             # compare category1, category2, device id
-            if recv[1] == row[1] and recv[2] == row[2] and recv[3] == row[3]:
+            if recv.cat1 == row.cat1 and recv.cat2 == row.cat2 and recv.devid == row.devid:
                 noti_on = False
                 # check data1
-                if row[4] == 1:
-                    if recv[5] > row[8]:
+                if row.comp1 == 1:
+                    if recv.data1 > row.data1:
                         noti_on = True
                     else:
                         continue
-                elif row[4] == 2:
-                    if recv[5] >= row[8]:
+                elif row.comp1 == 2:
+                    if recv.data1 >= row.data1:
                         noti_on = True
                     else:
                         continue
-                elif row[4] == 3:
-                    if recv[5] == row[8]:
+                elif row.comp1 == 3:
+                    if recv.data1 == row.data1:
                         noti_on = True
                     else:
                         continue
-                elif row[4] == 4:
-                    if recv[5] <= row[8]:
+                elif row.comp1 == 4:
+                    if recv.data1 <= row.data1:
                         noti_on = True
                     else:
                         continue
-                elif row[4] == 5:
-                    if recv[5] < row[8]:
+                elif row.comp1 == 5:
+                    if recv.data1 < row.data1:
                         noti_on = True
                     else:
                         continue
-                elif row[4] == 6:
-                    if recv[5] != row[8]:
+                elif row.comp1 == 6:
+                    if recv.data1 != row.data1:
                         noti_on = True
                     else:
                         continue
                 # check data2
-                if row[5] == 1:
-                    if recv[6] > row[9]:
+                if row.comp2 == 1:
+                    if recv.data2 > row.data2:
                         noti_on = True
                     else:
                         continue
-                elif row[5] == 2:
-                    if recv[6] >= row[9]:
+                elif row.comp2 == 2:
+                    if recv.data2 >= row.data2:
                         noti_on = True
                     else:
                         continue
-                elif row[5] == 3:
-                    if recv[6] == row[9]:
+                elif row.comp2 == 3:
+                    if recv.data2 == row.data2:
                         noti_on = True
                     else:
                         continue
-                elif row[5] == 4:
-                    if recv[6] <= row[9]:
+                elif row.comp2 == 4:
+                    if recv.data2 <= row.data2:
                         noti_on = True
                     else:
                         continue
-                elif row[5] == 5:
-                    if recv[6] < row[9]:
+                elif row.comp2 == 5:
+                    if recv.data2 < row.data2:
                         noti_on = True
                     else:
                         continue
-                elif row[5] == 6:
-                    if recv[6] != row[9]:
+                elif row.comp2 == 6:
+                    if recv.data2 != row.data2:
                         noti_on = True
                     else:
                         continue
                 # check data3
-                if row[6] == 1:
-                    if recv[7] > row[10]:
+                if row.comp3 == 1:
+                    if recv.data3 > row.data3:
                         noti_on = True
                     else:
                         continue
-                elif row[6] == 2:
-                    if recv[7] >= row[10]:
+                elif row.comp3 == 2:
+                    if recv.data3 >= row.data3:
                         noti_on = True
                     else:
                         continue
-                elif row[6] == 3:
-                    if recv[7] == row[10]:
+                elif row.comp3 == 3:
+                    if recv.data3 == row.data3:
                         noti_on = True
                     else:
                         continue
-                elif row[6] == 4:
-                    if recv[7] <= row[10]:
+                elif row.comp3 == 4:
+                    if recv.data3 <= row.data3:
                         noti_on = True
                     else:
                         continue
-                elif row[6] == 5:
-                    if recv[7] < row[10]:
+                elif row.comp3 == 5:
+                    if recv.data3 < row.data3:
                         noti_on = True
                     else:
                         continue
-                elif row[6] == 6:
-                    if recv[7] != row[10]:
+                elif row.comp3 == 6:
+                    if recv.data3 != row.data3:
                         noti_on = True
                     else:
                         continue
                 # check data4
-                if row[7] == 1:
-                    if recv[8] > row[11]:
+                if row.comp4 == 1:
+                    if recv.data4 > row.data4:
                         noti_on = True
                     else:
                         continue
-                elif row[7] == 2:
-                    if recv[8] >= row[11]:
+                elif row.comp4 == 2:
+                    if recv.data4 >= row.data4:
                         noti_on = True
                     else:
                         continue
-                elif row[7] == 3:
-                    if recv[8] == row[11]:
+                elif row.comp4 == 3:
+                    if recv.data4 == row.data4:
                         noti_on = True
                     else:
                         continue
-                elif row[7] == 4:
-                    if recv[8] <= row[11]:
+                elif row.comp4 == 4:
+                    if recv.data4 <= row.data4:
                         noti_on = True
                     else:
                         continue
-                elif row[7] == 5:
-                    if recv[8] < row[11]:
+                elif row.comp4 == 5:
+                    if recv.data4 < row.data4:
                         noti_on = True
                     else:
                         continue
-                elif row[7] == 6:
-                    if recv[8] != row[11]:
+                elif row.comp4 == 6:
+                    if recv.data4 != row.data4:
                         noti_on = True
                     else:
                         continue
             if noti_on:
-                notis.append(row[0])    # Add noti id
+                notis.append(row.id)    # Add noti id
 
         return notis
 
-    # Check if macro is available or not
+    # Check if macro is available or not (noti triggered)
     def check_macro(self, noti_ids):
         count = 0
         for noti_id in noti_ids:
             for row in self.macro:
                 # compare notification id
-                if noti_id == row[1]:
-                    self.callback(CALLBACK_TYPE_MACRO, None, row[6])  # process command
+                if noti_id == row.nid:
+                    row.time = time.time()
+                    self.db.update_macro_time(row.id, row.time)
+                    self.callback(CALLBACK_TYPE_MACRO, None, row.cmd)  # process command
+                    count += 1
+        return count
+
+    # Check if timer-macro is available or not (time triggered)
+    def check_timer_macro(self):
+        count = 0
+        for row in self.macro:
+            # check only timer macro
+            if row.interval > 0:
+                if row.time + row.interval*60 < time.time():
+                    self.callback(CALLBACK_TYPE_MACRO, None, row.cmd)  # process command
                     count += 1
         return count
 
@@ -488,14 +506,15 @@ class DeviceManagerThread(threading.Thread):
     def load_macro(self):
         results = self.db.select_all_macro()
         for row in results:
-            a_macro = []
-            a_macro.append(int(row[0]))    # id
-            a_macro.append(int(row[1]))    # noti id
-            a_macro.append(int(row[2]))    # cat1
-            a_macro.append(int(row[3]))    # cat2
-            a_macro.append(int(row[4]))    # device ID
-            a_macro.append(int(row[5]))    # updated
-            a_macro.append(row[6])    # command
+            a_macro = MacroInfo()
+            a_macro.id = int(row[0])    # id
+            a_macro.nid = int(row[1])    # noti id
+            a_macro.cat1 = int(row[2])    # cat1
+            a_macro.cat2 = int(row[3])    # cat2
+            a_macro.devid = int(row[4])    # device ID
+            a_macro.time = int(row[5])    # updated
+            a_macro.cmd = row[6]    # command
+            a_macro.interval = int(row[7])    # interval (for timer)
             self.add_macro_to_list(a_macro)
 
     # Get all macro
@@ -505,9 +524,9 @@ class DeviceManagerThread(threading.Thread):
     # Get macro with id
     def get_macro_with_id(self, mid):
         for item in self.macro:
-            if item[0] == mid:
+            if item.id == mid:
                 return item
-        return []
+        return None
 
     # Refresh macro list
     def refresh_macro_list(self):
@@ -515,19 +534,19 @@ class DeviceManagerThread(threading.Thread):
         self.load_macro()
 
     # Add macro to DB and update list
-    def add_macro(self, a_macro):
-        if self.insert_macro(a_macro):
+    def add_macro(self, o_macro):
+        if self.insert_macro(o_macro):
             self.refresh_macro_list()
             return True
         return False
 
     # Add macro to list
-    def add_macro_to_list(self, a_macro):
-        self.macro.append(a_macro)
+    def add_macro_to_list(self, o_macro):
+        self.macro.append(o_macro)
 
     # Add macro to DB
-    def insert_macro(self, a_macro):
-        return self.db.add_macro(a_macro)
+    def insert_macro(self, o_macro):
+        return self.db.add_macro(o_macro)
 
     # Delete macro with id
     def delete_macro_with_id(self, id):

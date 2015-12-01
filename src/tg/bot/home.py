@@ -25,6 +25,12 @@ from hc_protocol import *
 from message_box import *
 from utilities import *
 from config import Configurations
+from hc_protocol import *
+from DeviceInfo import *
+from SensorInfo import *
+from MacroInfo import *
+from NotiInfo import *
+
 
 # Telegram python interface
 import telebot
@@ -37,13 +43,13 @@ import telebot
 ###########################################
 
 # Write your own TOKEN (get from BotFather)
-API_TOKEN = "your_token"
-CHAT_ID = ""    # leave it blank if you dont know
+API_TOKEN = "your_bot_TOKEN"
+CHAT_ID = ""    # leave it blank
 
 # Type your MySQL settings
-MYSQL_USER = 'your_user_name'
-MYSQL_DB = 'your_db_name'
-MYSQL_PASS = 'your_user_pass'
+MYSQL_USER = 'pi'
+MYSQL_DB = 'pidb'
+MYSQL_PASS = 'your_db_password'
 
 # Weather report (Deprecated!!! do not use this)
 # Get API key from
@@ -82,13 +88,24 @@ send_queue = Queue.Queue()
 # Telegram message handler
 ############################################
 
-# Not implemented yet!!
+# Example of telegram message handler
 #@bot.message_handler(commands=['record', 'rec'])
 #def cctv_off(message):
 #    send_chat(message, 'Sorry, not implemented yet...')
 
+# Alias slash command
+# : Only slash command is allowed in group chat
+@bot.message_handler(regexp="^/{1}[^/]")
+def cmd_slash_exp(message):
+    global CHAT_ID
+
+    # update chat id
+    CHAT_ID = message.chat.id
+    escaped = message.text.replace('/', '')
+    parse_command(message, escaped)
 
 # Nomal text handler
+# : for 1:1 chat with bot
 @bot.message_handler(func=lambda message: True)
 def echo_all(message):
     global is_cctv_active
@@ -96,14 +113,13 @@ def echo_all(message):
     global cctv_url
 
     # update chat id
-    if CHAT_ID == '':
-        CHAT_ID = message.chat.id
+    CHAT_ID = message.chat.id
 
-    parseCommand(message, message.text)
+    parse_command(message, message.text)
     pass
 
 # Parse command
-def parseCommand(message, str_cmd):
+def parse_command(message, str_cmd):
     global is_cctv_active
     global CHAT_ID
     global cctv_url
@@ -114,9 +130,12 @@ def parseCommand(message, str_cmd):
     # Bot check command
     if cmd[0] == 'hello' or cmd[0] == 'hi' or cmd[0] == '하이' or cmd[0] == '안녕':
         send_chat(message, msg_welcome())
+        return
+
     # Ping test
     elif cmd[0] == 'help' or cmd[0] == '도움말':
         send_chat(message, msg_help_text())
+        return
 
     # Ping test
     elif cmd[0] == 'ping' or cmd[0] == '핑':
@@ -132,10 +151,11 @@ def parseCommand(message, str_cmd):
             send_chat(message, msg_devnum_error())
             return
         device = t_dev.get_device_at(devnum)
-        if len(device) < 1:
+        if device is None:
             send_chat(message, msg_device_not_found() + ' ' + str(devnum))
             return
-        t_ser.send(device[1], device[2], device[3], 0x01, 0, 0, 0, 0)        
+        t_ser.send(device.cat1, device.cat2, device.devid, 0x01, 0, 0, 0, 0)
+        return
 
     # Set language
     elif cmd[0] == 'lang' or cmd[0] == 'language' or cmd[0] == '언어':
@@ -155,22 +175,7 @@ def parseCommand(message, str_cmd):
             send_chat(message, msg_lang_changed())
             return
         send_chat(message, msg_invalid_param())
-
-    # Deprecated!!! Do not use this
-    # weather command
-#    elif cmd[0] == 'weather' or cmd[0] == '날씨':
-#        owm = pyowm.OWM(weather_api_key)
-#        obs = owm.weather_at_place(weather_location)
-#        w = obs.get_weather()
-#        report_str = weather_location
-#        report_str += "\n"
-#        report_str += w.get_detailed_status()
-#        report_str += ", "
-#        report_str += str(w.get_temperature(unit='celsius')['temp'])
-#        report_str += "'C, "
-#        report_str += str(w.get_humidity())
-#        report_str += "%"
-#        send_chat(message, report_str)
+        return
 
     # cctv command
     elif cmd[0] == 'cctv' or cmd[0] == 'cam' or cmd[0] == '캠':
@@ -193,9 +198,16 @@ def parseCommand(message, str_cmd):
             os.system(cctv_stop_cmd)
             send_chat(message, msg_cctv_off())
             is_cctv_active = False
+        return
 
     # take a picture
     elif cmd[0] == 'pic' or cmd[0] == 'picture' or cmd[0] == '사진':
+        # remove pictures in picture directory
+        if len(cmd) > 1 and (cmd[1] == 'remove' or cmd[1] == 'del' or cmd[1] == 'delete' or cmd[1] == '삭제' or cmd[1] == '제거'):
+            os.system('rm -f '+picture_dir+'image_*.jpg')
+            send_chat(message, msg_remove_pictures())
+            return
+
         # Stop cctv first
         if is_cctv_active:
             send_chat(message, msg_turnoff_cctv())
@@ -215,6 +227,7 @@ def parseCommand(message, str_cmd):
             ret_msg = send_photo(message, pic_file)  # message.chat.id
         except:
             send_chat(message, 'Cannot take a picture!!')
+        return
 
     # Device command
     elif cmd[0] == 'dev' or cmd[0] == 'device' or cmd[0] == '장치':
@@ -225,12 +238,12 @@ def parseCommand(message, str_cmd):
             devices = t_dev.get_device_list()
             for device in devices:
                 msg += str(count+1) + ". "
-                msg += device[13]
+                msg += device.name
                 msg += ", " + msg_location() + "="
-                msg += device[14]
-                msg += "\n" + msg_category() +"1=" + str(device[1])
-                msg += ", " + msg_category() +"2=" + str(device[2])
-                msg += ", ID=" + str(device[3])
+                msg += device.loc
+                msg += "\n" + msg_category() +"1=" + str(device.cat1)
+                msg += ", " + msg_category() +"2=" + str(device.cat2)
+                msg += ", ID=" + str(device.devid)
                 msg += "\n\n"
                 count = count + 1
             if count < 1:
@@ -246,39 +259,40 @@ def parseCommand(message, str_cmd):
                 if cmd[2].isdigit():
                     devnum = int(cmd[2])
                 device = t_dev.get_device_at(devnum)
-                if len(device) > 0:
+                if device is not None:
                     msg += msg_device_number() + " = " + str(devnum) + "\n"
-                    msg += device[13]
+                    msg += device.name
                     msg += ", " + msg_location() + "="
-                    msg += device[14]
-                    msg += "\n" + msg_category() + "1=" + str(device[1])
-                    msg += ", " + msg_category() + "2=" + str(device[2])
-                    msg += ", ID=" + str(device[3])
-                    msg += "\n" + msg_update_time() + "=" + time.asctime(time.localtime(device[15]))
+                    msg += device.loc
+                    msg += "\n" + msg_category() + "1=" + str(device.cat1)
+                    msg += ", " + msg_category() + "2=" + str(device.cat2)
+                    msg += ", ID=" + str(device.devid)
+                    msg += "\n" + msg_update_time() + "=" + time.asctime(time.localtime(device.time))
                     msg += "\n\n"
                     msg += msg_control_signal() + "1="
-                    msg += get_cmd_name(device[5])
+                    msg += get_cmd_name(device.cmd1)
                     msg += ", " + msg_data_type() + "1="
-                    msg += get_cmd_type_name(device[6])
+                    msg += get_cmd_type_name(device.cmd1dtype)
                     msg += "\n"
                     msg += msg_control_signal() + "2="
-                    msg += get_cmd_name(device[7])
+                    msg += get_cmd_name(device.cmd2)
                     msg += ", " + msg_data_type() + "2="
-                    msg += get_cmd_type_name(device[8])
+                    msg += get_cmd_type_name(device.cmd2dtype)
                     msg += "\n"
                     msg += msg_control_signal() + "3="
-                    msg += get_cmd_name(device[9])
+                    msg += get_cmd_name(device.cmd3)
                     msg += ", " + msg_data_type() + "3="
-                    msg += get_cmd_type_name(device[10])
+                    msg += get_cmd_type_name(device.cmd3dtype)
                     msg += "\n"
                     msg += msg_control_signal() + "4="
-                    msg += get_cmd_name(device[11])
+                    msg += get_cmd_name(device.cmd4)
                     msg += ", " + msg_data_type() + "4="
-                    msg += get_cmd_type_name(device[12])
+                    msg += get_cmd_type_name(device.cmd4dtype)
                     msg += "\n\n" + msg_ctrlsignal_desc()
                 else:
                     msg += msg_device_not_found()
                 send_chat(message, msg)
+            return
 
         # Device - Remove device
         elif cmd[1] == 'remove' or cmd[1] == 'del' or cmd[1] == 'delete' or cmd[1] == '삭제' or cmd[1] == '제거':
@@ -294,6 +308,7 @@ def parseCommand(message, str_cmd):
                     send_chat(message, msg_device_removed() % devnum)
                 else:
                     send_chat(message, msg_device_remove_error() % devnum)
+            return
 
         # Device - Remove all devices
         elif cmd[1] == 'removeall' or cmd[1] == 'delall' or cmd[1] == 'deleteall' or cmd[1] == '모두삭제' or cmd[1] == '모두제거':
@@ -301,6 +316,7 @@ def parseCommand(message, str_cmd):
                 send_chat(message, msg_every_device_removed())
             else:
                 send_chat(message, msg_every_device_remove_error())
+            return
 
     # Get sensor value
     elif cmd[0] == 'sensor' or cmd[0] == 'data' or cmd[0] == 'print' or cmd[0] == '센서' or cmd[0] == '데이터' or cmd[0] == '출력':
@@ -340,6 +356,7 @@ def parseCommand(message, str_cmd):
                     send_chat(message, msg_sensordata_remove_error() % devnum)
             else:
                 send_chat(message, msg_need_devnum())
+            return
 
         # Delete sensor records all
         elif cmd[1] == 'removeall' or cmd[1] == 'delall' or cmd[1] == 'deleteall' or cmd[1] == '모두삭제' or cmd[1] == '모두제거':
@@ -375,18 +392,24 @@ def parseCommand(message, str_cmd):
             msg = ''
             i = 0
             for info in infos:
-                itime = time.localtime(info[6])
+                itime = time.localtime(info.time)
                 msg += "%d-%d %d:%d" % (itime.tm_mon, itime.tm_mday, itime.tm_hour, itime.tm_min)
-                msg += " = %d, %d, %d, %d" % (info[0], info[1], info[2], info[3])
+                msg += " = %d, %d, %d, %d" % (info.data1, info.data2, info.data3, info.data4)
                 msg += "\n"
                 i = i + 1
             if i > 0:
                 send_chat(message, msg)
             else:
                 send_chat(message, msg_no_matching_result())
+        return
 
     # Get sensor value and return with graph
     elif cmd[0] == 'graph' or cmd[0] == '그래프':
+        if len(cmd) == 2 and (cmd[1] == 'remove' or cmd[1] == 'del' or cmd[1] == 'delete' or cmd[1] == '삭제' or cmd[1] == '제거'):
+            os.system('rm -f '+graph_dir+'graph_*.png')
+            send_chat(message, msg_remove_pictures())
+            return
+
         # extract parameter
         # graph a b : a=device number, b=count
         if len(cmd) < 2:
@@ -407,16 +430,16 @@ def parseCommand(message, str_cmd):
         h_labels = []
         prev_d, prev_h, prev_m = 0, 0, 0
         for info in infos:
-            itime = time.localtime(info[6])
+            itime = time.localtime(info.time)
             if prev_d != itime.tm_mday or prev_h != itime.tm_hour or prev_m != itime.tm_min:
                 timestr = "%d-%d %d:%d" % (itime.tm_mon, itime.tm_mday, itime.tm_hour, itime.tm_min)
             else:
                 timestr = "%d:%d" % (itime.tm_hour, itime.tm_min)
             prev_d, prev_h, prev_m = itime.tm_mday, itime.tm_hour, itime.tm_min
-            datas[0].append(info[0])
-            datas[1].append(info[1])
-            datas[2].append(info[2])
-            datas[3].append(info[3])
+            datas[0].append(info.data1)
+            datas[1].append(info.data2)
+            datas[2].append(info.data3)
+            datas[3].append(info.data4)
             h_labels.append(timestr)
             i = i + 1
         # ready to burn graph
@@ -445,6 +468,7 @@ def parseCommand(message, str_cmd):
                 send_chat(message, msg_cannot_open_graph())
         else:
             send_chat(message, msg_no_matching_result())
+        return
 
     # Sends data to remote
     elif cmd[0] == 'ctrl' or cmd[0] == 'control' or cmd[0] == 'send' or cmd[0] == '제어' or cmd[0] == '전송':
@@ -460,7 +484,7 @@ def parseCommand(message, str_cmd):
             return;
         # get device info
         device = t_dev.get_device_at(devnum)
-        if len(device) < 1:
+        if device is None:
             send_chat(message, msg_wrong_device())
             return;
         data1 = 0
@@ -494,8 +518,9 @@ def parseCommand(message, str_cmd):
         else:
             data4 = 0
         # send device control signal to remote
-        t_ser.send_control_signal(device[1], device[2], device[3], data1, data2, data3, data4)
+        t_ser.send_control_signal(device.cat1, device.cat2, device.devid, data1, data2, data3, data4)
         send_chat(message, msg_sent_signal() % devnum)
+        return
 
     # Make notification setting
     elif cmd[0] == 'noti' or cmd[0] == 'notification' or cmd[0] == '알림':
@@ -505,37 +530,37 @@ def parseCommand(message, str_cmd):
             notis = t_dev.get_noti_list()
             count = 0
             for noti in notis:
-                strmsg += msg_noti() + ' ID = ' + str(noti[0]) + '\n'
+                strmsg += msg_noti() + ' ID = ' + str(noti.id) + '\n'
                 #strmsg += noti[13] + '\n'
-                strmsg += msg_category() + "1=" + str(noti[1])
-                strmsg += ", " + msg_category() + "2=" + str(noti[2])
-                strmsg += ", ID=" + str(noti[3]) + "\n" + "if "
+                strmsg += msg_category() + "1=" + str(noti.cat1)
+                strmsg += ", " + msg_category() + "2=" + str(noti.cat2)
+                strmsg += ", ID=" + str(noti.devid) + "\n" + "if "
                 tmpcount = 0
-                if noti[4] > 0:
+                if noti.comp1 > 0:
                     strmsg += "Data1 "
-                    strmsg += get_comp_operator(noti[4]) + " "
-                    strmsg += str(noti[8]) + "\n"
+                    strmsg += get_comp_operator(noti.comp1) + " "
+                    strmsg += str(noti.data1) + "\n"
                     tmpcount += 1
-                if noti[5] > 0:
+                if noti.comp2 > 0:
                     if tmpcount > 0:
                         strmsg += "and "
                     strmsg += "Data2 "
-                    strmsg += get_comp_operator(noti[5]) + " "
-                    strmsg += str(noti[9]) + "\n"
+                    strmsg += get_comp_operator(noti.comp2) + " "
+                    strmsg += str(noti.data2) + "\n"
                     tmpcount += 1
-                if noti[6] > 0:
+                if noti.comp3 > 0:
                     if tmpcount > 0:
                         strmsg += "and "
                     strmsg += "Data3 "
-                    strmsg += get_comp_operator(noti[6]) + " "
-                    strmsg += str(noti[10]) + "\n"
+                    strmsg += get_comp_operator(noti.comp3) + " "
+                    strmsg += str(noti.data3) + "\n"
                     tmpcount += 1
-                if noti[7] > 0:
+                if noti.comp4 > 0:
                     if tmpcount > 0:
                         strmsg += "and "
                     strmsg += "Data4 "
-                    strmsg += get_comp_operator(noti[7]) + " "
-                    strmsg += str(noti[11]) + "\n"
+                    strmsg += get_comp_operator(noti.comp4) + " "
+                    strmsg += str(noti.data4) + "\n"
                     tmpcount += 1
                 count += 1
                 strmsg += '\n'
@@ -571,14 +596,7 @@ def parseCommand(message, str_cmd):
                         send_chat(message, msg_noti_del_fail())
                     return
                 else:
-                    # delete with name
-                    noti_name = ''
-                    for index in range(2, len(cmd)):
-                        noti_name += cmd[index]
-                    if t_dev.delete_noti_with_name(noti_name):
-                        send_chat(message, msg_noti_del_success())
-                    else:
-                        send_chat(message, msg_noti_del_fail())
+                    send_chat(message, msg_noti_del_fail())
                     return
 
         # Add notification
@@ -597,12 +615,10 @@ def parseCommand(message, str_cmd):
             if cat1 < 0 or cat2 < 0 or devid < 0:
                 send_chat(message, msg_wrong_device())
                 return
-            noti = []
-            noti.append(-1)
-            noti.append(cat1)
-            noti.append(cat2)
-            noti.append(devid)
-
+            noti = NotiInfo()
+            noti.cat1 = cat1
+            noti.cat2 = cat2
+            noti.devid = devid
             datanum1, datanum2, datanum3, datanum4 = 0,0,0,0
             compcode1, compcode2, compcode3, compcode4 = 0,0,0,0
             targetnum1, targetnum2, targetnum3, targetnum4 = 0,0,0,0
@@ -698,17 +714,17 @@ def parseCommand(message, str_cmd):
                 send_chat(message, msg_invalid_noti_cmd())
                 return
             # assign parsed parameters
-            noti.append(compcode1)
-            noti.append(compcode2)
-            noti.append(compcode3)
-            noti.append(compcode4)
-            noti.append(targetnum1)
-            noti.append(targetnum2)
-            noti.append(targetnum3)
-            noti.append(targetnum4)
-            noti.append(int(time.time()))
+            noti.comp1 = compcode1
+            noti.comp2 = compcode2
+            noti.comp3 = compcode3
+            noti.comp4 = compcode4
+            noti.data1 = targetnum1
+            noti.data2 = targetnum2
+            noti.data3 = targetnum3
+            noti.data4 = targetnum4
+            noti.time = int(time.time())
             cur = time.localtime()
-            noti.append('Noti' + str(cur.tm_mon) + str(cur.tm_mday) + str(cur.tm_hour) + str(cur.tm_min) + str(cur.tm_sec))
+            noti.name = 'Noti' + str(cur.tm_mon) + str(cur.tm_mday) + str(cur.tm_hour) + str(cur.tm_min) + str(cur.tm_sec)
             # push to DB and cached list
             if t_dev.add_noti(noti):
                 send_chat(message, msg_add_noti_success())
@@ -717,6 +733,7 @@ def parseCommand(message, str_cmd):
         # Invalid notification command
         else:
             send_chat(message, msg_invalid_noti_cmd())
+        return
 
     # Make macro
     elif cmd[0] == 'macro' or cmd[0] == '매크로':
@@ -726,9 +743,11 @@ def parseCommand(message, str_cmd):
             macros = t_dev.get_macro_list()
             count = 0
             for macro in macros:
-                strmsg += msg_macro() + ' ID = ' + str(macro[0]) + '\n'
-                strmsg += '-> If ' + msg_noti() + ' ID = ' + str(macro[1]) + ', Do : '
-                strmsg += macro[6] + '\n'
+                if macro.interval > 0:  # this is timer-macro
+                    continue
+                strmsg += msg_macro() + ' ID = ' + str(macro.id) + '\n'
+                strmsg += '-> If ' + msg_noti() + 'ID == ' + str(macro.nid) + ', Do : '
+                strmsg += macro.cmd + '\n'
                 count += 1
             if count > 0:
                 send_chat(message, strmsg)
@@ -738,7 +757,7 @@ def parseCommand(message, str_cmd):
             # End of 'macro' command
             return
 
-        # Delete notification
+        # Delete macro
         elif cmd[1] == 'delete' or cmd[1] == 'del' or cmd[1] == '삭제' or cmd[1] == '제거':
             if len(cmd) < 3:
                 send_chat(message, msg_type_macro_del_param())
@@ -767,7 +786,7 @@ def parseCommand(message, str_cmd):
                     send_chat(message, msg_macro_del_fail())
                     return
 
-        # Add notification
+        # Add macro (noti-triggered)
         elif cmd[1] == 'add' or cmd[1] == '추가':
             if len(cmd) < 4:
                 send_chat(message, msg_add_macro_param())
@@ -780,12 +799,12 @@ def parseCommand(message, str_cmd):
                 return
             # search device info
             noti = t_dev.get_noti_with_id(noti_num)
-            if len(noti) < 1:
+            if noti is None:
                 send_chat(message, msg_invalid_noti_id())
                 return
-            cat1 = noti[1]
-            cat2 = noti[2]
-            devid = noti[3]
+            cat1 = noti.cat1
+            cat2 = noti.cat2
+            devid = noti.devid
             if cat1 < 0 or cat2 < 0 or devid < 0:
                 send_chat(message, msg_wrong_device())
                 return
@@ -793,18 +812,85 @@ def parseCommand(message, str_cmd):
             for index in range(3, len(cmd)):
                 str_cmd += cmd[index] + ' '
             str_cmd.strip()
-            a_macro = []
-            a_macro.append(-1)      # id
-            a_macro.append(noti_num)# noti id
-            a_macro.append(cat1)    # cat1
-            a_macro.append(cat2)    # cat2
-            a_macro.append(devid)  # device ID
-            a_macro.append(time.time())  # updated
-            a_macro.append(str_cmd) # command
-            if t_dev.add_macro(a_macro):
+            o_macro = MacroInfo()
+            o_macro.nid = noti_num  # noti id
+            o_macro.cat1 = cat1     # cat1
+            o_macro.cat2 = cat2     # cat2
+            o_macro.devid = devid   # device ID
+            o_macro.time = int(time.time())  # updated
+            o_macro.cmd = str_cmd   # command
+            o_macro.interval = 0    # interval (for timer)
+            if t_dev.add_macro(o_macro):
                 send_chat(message, msg_add_macro_success())
             else:
                 send_chat(message, msg_add_macro_fail())
+            return
+
+    # Make timer
+    elif cmd[0] == 'timer' or cmd[0] == '타이머':
+        # Show timer list
+        if len(cmd) < 2:
+            strmsg = ''
+            macros = t_dev.get_macro_list()
+            count = 0
+            for macro in macros:
+                if macro.interval < 1:  # filter out noti-triggered macro
+                    continue
+                strmsg += msg_timer() + ' ID = ' + str(macro.id) + '\n'
+                strmsg += '-> Every ' + str(macro.interval) + ' min, Do : '
+                strmsg += macro.cmd + '\n'
+                count += 1
+            if count > 0:
+                send_chat(message, strmsg)
+            else:
+                strmsg += '\n'
+                send_chat(message, msg_no_timer())
+            # End of 'timer' command
+            return
+
+        # Delete timer
+        elif cmd[1] == 'delete' or cmd[1] == 'del' or cmd[1] == '삭제' or cmd[1] == '제거':
+            if len(cmd) < 3:
+                send_chat(message, msg_type_timer_del_param())
+                return
+            else:
+                if len(cmd) == 3 and cmd[2].isdigit():
+                    # delete with timer-ID
+                    timer_id = int(cmd[2])
+                    if t_dev.delete_macro_with_id(timer_id):
+                        send_chat(message, msg_timer_del_success())
+                    else:
+                        send_chat(message, msg_timer_del_fail())
+                    return
+                else:
+                    # cannot delete timer
+                    send_chat(message, msg_timer_del_fail())
+                    return
+
+        # Add timer
+        elif cmd[1] == 'add' or cmd[1] == '추가':
+            if len(cmd) < 4:
+                send_chat(message, msg_add_timer_param())
+                return
+            interval = -1
+            if cmd[2].isdigit():
+                interval = int(cmd[2])
+            else:
+                send_chat(message, msg_add_timer_param())
+                return
+            str_cmd = ""
+            for index in range(3, len(cmd)):
+                str_cmd += cmd[index] + ' '
+            str_cmd.strip()
+            o_macro = MacroInfo()
+            o_macro.time = int(time.time())  # updated
+            o_macro.cmd = str_cmd        # command
+            o_macro.interval = interval  # interval (for timer)
+            if t_dev.add_macro(o_macro):
+                send_chat(message, msg_add_macro_success())
+            else:
+                send_chat(message, msg_add_macro_fail())
+            return
 
     # End of echo_all(message)
     pass
@@ -816,54 +902,59 @@ def parseCommand(message, str_cmd):
 ############################################
 
 def incoming_cmd_callback(recv):
+    if recv is None:
+        print '    serial thread callback: Critical error!!! recv is not an object!!!'
+        return
     # Process received information
-    if recv[0] == 1:    # received packet
-        if recv[4] == 17:  # 0x11 : Register device
+    if recv.objtype == 1:    # received packet
+        if recv.cmd == 17:  # 0x11 : Register device
             print ''
-        elif recv[4] == 81: # 0x51 : Update sensor data
+        elif recv.cmd == 81: # 0x51 : Update sensor data
             print ''
-        elif recv[4] == 1: # 0x01 : Ping response
+        elif recv.cmd == 1: # 0x01 : Ping response
             # get matching device
-            device = t_dev.get_device(recv[1], recv[2], recv[3])
-            if len(device) < 1:
+            device = t_dev.get_device(recv.cat1, recv.cat2, recv.devid)
+            if device is None:
+                print '    home.py dev callback: error!! There is no matching device!!'
                 return
             msg = ''
-            msg += device[13]
+            msg += device.name
             msg += ", "+msg_location()+"="
-            msg += device[14]
-            msg += "\n"+msg_category()+"1=" + str(device[1])
-            msg += ", "+msg_category()+"2=" + str(device[2])
-            msg += ", ID=" + str(device[3])
+            msg += device.loc
+            msg += "\n"+msg_category()+"1=" + str(device.cat1)
+            msg += ", "+msg_category()+"2=" + str(device.cat2)
+            msg += ", ID=" + str(device.devid)
             msg += "\n\n" + msg_recv_ping_response()
             send_chat(None, msg)
-        elif recv[4] == 129: # 0x81 : Control signal response
+        elif recv.cmd == 129: # 0x81 : Control signal response
             # get matching device
-            device = t_dev.get_device(recv[1], recv[2], recv[3])
-            if len(device) < 1:
+            device = t_dev.get_device(recv.cat1, recv.cat2, recv.devid)
+            if device is None:
+                print '    home.py dev callback: error!! There is no matching device!!'
                 return
             msg = ''
-            msg += device[13]
+            msg += device.name
             msg += ", "+msg_location()+"="
-            msg += device[14]
-            msg += "\n"+msg_category()+"1=" + str(device[1])
-            msg += ", "+msg_category()+"2=" + str(device[2])
-            msg += ", ID=" + str(device[3])
+            msg += device.loc
+            msg += "\n"+msg_category()+"1=" + str(device.cat1)
+            msg += ", "+msg_category()+"2=" + str(device.cat2)
+            msg += ", ID=" + str(device.devid)
             msg += "\n\n" + msg_ctrlsignal_response() + "\n"
-            msg += get_cmd_name(device[5])
+            msg += get_cmd_name(device.cmd1)
             msg += "="
-            msg += str(recv[5])
+            msg += str(recv.data1)
             msg += "\n"
-            msg += get_cmd_name(device[7])
+            msg += get_cmd_name(device.cmd2)
             msg += "="
-            msg += str(recv[6])
+            msg += str(recv.data2)
             msg += "\n"
-            msg += get_cmd_name(device[9])
+            msg += get_cmd_name(device.cmd3)
             msg += "="
-            msg += str(recv[7])
+            msg += str(recv.data3)
             msg += "\n"
-            msg += get_cmd_name(device[11])
+            msg += get_cmd_name(device.cmd4)
             msg += "="
-            msg += str(recv[8])
+            msg += str(recv.data4)
             send_chat(None, msg)
     # End of incoming_cmd_callback()
     return
@@ -874,17 +965,20 @@ CALLBACK_TYPE_MACRO = 2
 
 def device_thread_callback(type, recv, command):
     if type == CALLBACK_TYPE_NOTI:
+        if recv is None:
+            print '    dev thread callback: Critical error!!! recv is not an object!!!'
+            return
         msg = ''
-        msg += recv[13]
+        msg += recv.name
         msg += ", " + msg_location() + "="
-        msg += recv[14]
-        msg += "\n" + msg_category() +"1=" + str(recv[1])
-        msg += ", " + msg_category() +"2=" + str(recv[2])
-        msg += ", ID=" + str(recv[3])
+        msg += recv.loc
+        msg += "\n" + msg_category() +"1=" + str(recv.cat1)
+        msg += ", " + msg_category() +"2=" + str(recv.cat2)
+        msg += ", ID=" + str(recv.devid)
         msg += "\n\n" + msg_noti_received()
         send_chat(None, msg)
     elif type == CALLBACK_TYPE_MACRO:
-        parseCommand(None, command)
+        parse_command(None, command)
         print '    macro command = ' + command
     # End of device_thread_callback()
     return

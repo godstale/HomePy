@@ -204,7 +204,8 @@ controller_map = {
 5: "Lock",
 6: "MOSFET",
 7: "Transistor",
-8: "Relay"
+8: "Relay",
+9: "Water pump"
 }
 
 controller_map_kr = {
@@ -215,7 +216,8 @@ controller_map_kr = {
 5: "자물쇠",
 6: "MOSFET",
 7: "트랜지스터",
-8: "릴레이" 
+8: "릴레이",
+9: "물펌프"
 }
 
 # Category 1 = 0x11 : electronics

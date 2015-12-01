@@ -80,6 +80,12 @@ def msg_turnoff_cctv():
     else:
         return 'CCTV stopped.'
 
+def msg_remove_pictures():
+    if msg_lang == 'kr':
+        return '이미지 파일을 모두 삭제하였습니다.'
+    else:
+        return 'Removed pictures.'
+
 def msg_device_number():
     if msg_lang == 'kr':
         return '장치넘버'
@@ -344,6 +350,60 @@ def msg_add_macro_fail():
     else:
         return 'Cannot add macro!!'
 
+def msg_timer():
+    if msg_lang == 'kr':
+        return '타이머'
+    else:
+        return 'Timer'
+
+def msg_no_timer():
+    if msg_lang == 'kr':
+        return '타이머 설정이 없습니다.'
+    else:
+        return 'Timer setting is not exist.'
+
+def msg_type_timer_del_param():
+    if msg_lang == 'kr':
+        return '타이머 삭제에 필요한 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 삭제할 수 있습니다.\n타이머 삭제 (타이머ID)'
+    else:
+        return 'Invalid parameters!! Use command like below:\ntimer del (timer-ID)'
+
+def msg_timer_del_success():
+    if msg_lang == 'kr':
+        return '타이머를 삭제 했습니다.'
+    else:
+        return 'Removed timer.'
+
+def msg_timer_del_fail():
+    if msg_lang == 'kr':
+        return '타이머 삭제에 실패했습니다!!'
+    else:
+        return 'Cannot remove timer!!'
+
+def msg_add_timer_param():
+    if msg_lang == 'kr':
+        return '타이머 추가 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 추가할 수 있습니다.\n\n타이머 추가 (시간간격/분) (명령문)\n\n예) 타이머 추가 10 제어 1 5'
+    else:
+        return 'Invalid parameters!! Use command like below:\n\ntimer add (interva/min) (command)\n\nEx) timer add 10 send 1 5'
+
+def msg_invalid_timer_id():
+    if msg_lang == 'kr':
+        return '잘못된 타이머 ID 입니다!!'
+    else:
+        return 'Invalid timer ID!!'
+
+def msg_add_timer_success():
+    if msg_lang == 'kr':
+        return '타이머를 추가 했습니다.'
+    else:
+        return 'Added timer.'
+
+def msg_add_timer_fail():
+    if msg_lang == 'kr':
+        return '타이머 추가에 실패했습니다!!'
+    else:
+        return 'Cannot add timer!!'
+
 
 
 def msg_help_text():
@@ -357,14 +417,14 @@ ping (장치넘버)
 lang (en, kr)
 언어 설정을 변경. 영어(en), 한글(kr)만 지원
 
-weather
-소스상에 설정된 지역의 날씨를 출력
-
 cctv (on, off)
 카메라를 동작시키고 JPG 스트리밍을 on/off. CCTV를 볼 수 있는 URL을 전달
 
 pic
 사진을 촬영해서 이미지 파일을 전송해줌. 기존에 cctv가 동작중인 경우 cctv 동작이 중단됨
+
+pic del
+서버에 저장된 이미지 파일을 모두 삭제
 
 dev
 현재까지 감지되었던 장치들의 리스트를 보여줌. 동작이 중단된 장치가 있을 수 있음. 각 장치는 장치넘버를 가짐
@@ -390,8 +450,11 @@ sensor delall [시간]
 graph (장치넘버) [갯수]
 지정한 장치의 센서 데이터를 [갯수]만큼 추출해서 그래프로 그린 뒤 이미지 파일로 전송해줌. 최대 100개까지 출력. [갯수]가 생략된 경우 최신 데이터 10개를 사용.
 
+graph del
+서버에 저장된 그래프 파일을 모두 삭제
+
 send (장치넘버) (제어신호1) [제어신호2] ... [제어신호4]
-지정한 장치로 제어신호를 전송. 제어신호1 은 필수이면 2, 3, 4는 생략가능. 반드시 제어신호는 순서대로 기재해야 함. 사용가능한 제어신호의 정수값은 "장치 상세 (장치넘버)" 명령으로 확인가능.
+지정한 장치로 제어신호를 전송. 제어신호1 은 필수며 2, 3, 4는 생략가능. 반드시 제어신호는 순서대로 기재해야 함. 사용가능한 제어신호의 정수값은 "장치 상세 (장치넘버)" 명령으로 확인가능.
 
 noti
 사용자가 설정한 알림 설정을 모두 보여줌. 각각의 알림 설정은 알림 ID를 가짐.
@@ -411,6 +474,15 @@ macro add (알림ID) (명령어)
 
 macro del (매크로ID)
 지정한 매크로 삭제
+
+timer
+현재 설정된 타이머를 모두 보여줌.
+
+timer add (시간간격/분) (명령어)
+일정 시간 간격으로 명령어를 자동 실행하도록 설정
+
+timer del (타이머ID)
+지정한 타이머 삭제
 """
         return msg
     else:
@@ -423,14 +495,14 @@ ping (device_number)
 lang (en, kr)
 : Change language setting
 
-weather
-: Print current weather
-
 cctv (on, off)
 : Turn on cctv. Also sends streaming URL message.
 
 pic
 : Take a picture and sends image file. This command stops cctv if its running.
+
+pic del
+: Remove pictures in picture directory.
 
 dev
 : Show registered devices. Every device has its own device number
@@ -456,6 +528,9 @@ sensor delall [hour_unit]
 graph (device_number) [count]
 : Draw graph with sensor data and send it as image file. Max 100, use 10 if count is missing.
 
+graph del
+: Remove graph file in graph directory.
+
 send (device_number) (control1) [control2] ... [control4]
 : Send control signal to specified device. Control1 value is mandatory and others are optional. Check available control value with "dev desc (device_number)" command.
 
@@ -477,6 +552,15 @@ Add a macro.\nex) macro add 1 pic => Take a picture when HomePy enables noti 1.
 
 macro del (macro_ID)
 delete a macro.
+
+timer
+Show every timer.
+
+timer add (interval/min) (command)
+Add a timer.\nex) timer add 10 pic => Take a picture every 10 minute.
+
+macro del (timer_ID)
+delete a timer.
 """
         return msg
 

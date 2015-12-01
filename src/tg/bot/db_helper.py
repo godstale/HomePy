@@ -8,6 +8,11 @@ import time
 import MySQLdb
 
 import traceback
+from hc_protocol import *
+from DeviceInfo import *
+from SensorInfo import *
+from MacroInfo import *
+from NotiInfo import *
 
 
 ############################################
@@ -90,6 +95,7 @@ class DBHelper:
         deviceid INT,
         updated INT UNSIGNED,
         command VARCHAR(256),
+        timeinterval INT,
         temp1 INT,
         temp2 INT,
         temp3 INT,
@@ -217,67 +223,67 @@ class DBHelper:
         if update > 0:
             # update row
             sql_query = "UPDATE devices SET name='"
-            sql_query += device[13]
+            sql_query += device.name
             sql_query += "', location='"
-            sql_query += device[14]
+            sql_query += device.loc
             sql_query += "', updated="
-            sql_query += str(device[15])
+            sql_query += str(device.time)
             sql_query += ", cmd1="
-            sql_query += str(device[5])
+            sql_query += str(device.cmd1)
             sql_query += ", cmd2="
-            sql_query += str(device[7])
+            sql_query += str(device.cmd2)
             sql_query += ", cmd3="
-            sql_query += str(device[9])
+            sql_query += str(device.cmd3)
             sql_query += ", cmd4="
-            sql_query += str(device[11])
+            sql_query += str(device.cmd4)
             sql_query += ", type1="
-            sql_query += str(device[6])
+            sql_query += str(device.cmd1dtype)
             sql_query += ", type2="
-            sql_query += str(device[8])
+            sql_query += str(device.cmd2dtype)
             sql_query += ", type3="
-            sql_query += str(device[10])
+            sql_query += str(device.cmd3dtype)
             sql_query += ", type4="
-            sql_query += str(device[12])
+            sql_query += str(device.cmd4dtype)
             sql_query += " WHERE category1="
-            sql_query += str(device[1])
+            sql_query += str(device.cat1)
             sql_query += " AND category2="
-            sql_query += str(device[2])
+            sql_query += str(device.cat2)
             sql_query += " AND deviceid="
-            sql_query += str(device[3])
-            sql_query += ";"
+            sql_query += str(device.devid)
+            #sql_query += ";"
         else:
             sql_query = """INSERT INTO devices (category1, category2, deviceid,
                             name, location, updated,
                             cmd1, cmd2, cmd3, cmd4,
                             type1, type2, type3, type4)
                             VALUES ("""
-            sql_query += str(device[1])  # category 1
+            sql_query += str(device.cat1)  # category 1
             sql_query += ','
-            sql_query += str(device[2])  # category 2
+            sql_query += str(device.cat2)  # category 2
             sql_query += ','
-            sql_query += str(device[3])  # device ID
+            sql_query += str(device.devid)  # device ID
             sql_query += ",'"
-            sql_query += device[13]   # name
+            sql_query += device.name   # name
             sql_query += "','"
-            sql_query += device[14]   # location
+            sql_query += device.loc   # location
             sql_query += "',"
-            sql_query += str(device[15])  # updated time
+            sql_query += str(device.time)  # updated time
             sql_query += ','
-            sql_query += str(device[5])  # cmd1
+            sql_query += str(device.cmd1)  # cmd1
             sql_query += ','
-            sql_query += str(device[7])  # cmd2
+            sql_query += str(device.cmd2)  # cmd2
             sql_query += ','
-            sql_query += str(device[9])  # cmd3
+            sql_query += str(device.cmd3)  # cmd3
             sql_query += ','
-            sql_query += str(device[11])  # cmd4
+            sql_query += str(device.cmd4)  # cmd4
             sql_query += ','
-            sql_query += str(device[6])  # type1
+            sql_query += str(device.cmd1dtype)  # type1
             sql_query += ','
-            sql_query += str(device[8])  # type2
+            sql_query += str(device.cmd2dtype)  # type2
             sql_query += ','
-            sql_query += str(device[10])  # type3
+            sql_query += str(device.cmd3dtype)  # type3
             sql_query += ','
-            sql_query += str(device[12])  # type4
+            sql_query += str(device.cmd4dtype)  # type4
             sql_query += ')'
 
         # execute query
@@ -297,25 +303,25 @@ class DBHelper:
         sql_query = """INSERT INTO monitoring (category1, category2, deviceid,
                             data1, data2, data3, data4, 
                             data5, data6, updated) VALUES ("""
-        sql_query += str(device[1])  # category 1
+        sql_query += str(device.cat1)  # category 1
         sql_query += ','
-        sql_query += str(device[2])  # category 2
+        sql_query += str(device.cat2)  # category 2
         sql_query += ','
-        sql_query += str(device[3])  # device ID
+        sql_query += str(device.devid)  # device ID
         sql_query += ','
-        sql_query += str(device[5])  # int 1
+        sql_query += str(device.data1)  # int 1
         sql_query += ','
-        sql_query += str(device[6])  # int 2
+        sql_query += str(device.data2)  # int 2
         sql_query += ','
-        sql_query += str(device[7])  # int 3
+        sql_query += str(device.data3)  # int 3
         sql_query += ','
-        sql_query += str(device[8])  # int 4
+        sql_query += str(device.data4)  # int 4
         sql_query += ','
-        sql_query += str(device[9])  # float 1
+        sql_query += str(device.fdata1)  # float 1
         sql_query += ','
-        sql_query += str(device[10])  # float 2
+        sql_query += str(device.fdata2)  # float 2
         sql_query += ','
-        sql_query += str(device[15])  # updated time
+        sql_query += str(device.time)  # updated time
         sql_query += ')'
 
         # execute query
@@ -336,31 +342,31 @@ class DBHelper:
                             comp1, comp2, comp3, comp4,
                             data1, data2, data3, data4,
                             updated, name) VALUES ("""
-        sql_query += str(noti[1])  # category 1
+        sql_query += str(noti.cat1)  # category 1
         sql_query += ','
-        sql_query += str(noti[2])  # category 2
+        sql_query += str(noti.cat2)  # category 2
         sql_query += ','
-        sql_query += str(noti[3])  # device ID
+        sql_query += str(noti.devid)  # device ID
         sql_query += ','
-        sql_query += str(noti[4])  # comp 1
+        sql_query += str(noti.comp1)  # comp 1
         sql_query += ','
-        sql_query += str(noti[5])  # comp 2
+        sql_query += str(noti.comp2)  # comp 2
         sql_query += ','
-        sql_query += str(noti[6])  # comp 3
+        sql_query += str(noti.comp3)  # comp 3
         sql_query += ','
-        sql_query += str(noti[7])  # comp 4
+        sql_query += str(noti.comp4)  # comp 4
         sql_query += ','
-        sql_query += str(noti[8])  # int 1
+        sql_query += str(noti.data1)  # int 1
         sql_query += ','
-        sql_query += str(noti[9])  # int 2
+        sql_query += str(noti.data2)  # int 2
         sql_query += ','
-        sql_query += str(noti[10])  # int 3
+        sql_query += str(noti.data3)  # int 3
         sql_query += ','
-        sql_query += str(noti[11])  # int 4
+        sql_query += str(noti.data4)  # int 4
         sql_query += ','
-        sql_query += str(noti[12])  # updated time
+        sql_query += str(noti.time)  # updated time
         sql_query += ',"'
-        sql_query += str(noti[13])  # name
+        sql_query += str(noti.name)  # name
         sql_query += '")'
 
         # execute query
@@ -378,19 +384,21 @@ class DBHelper:
 
     def add_macro(self, macro):
         sql_query = """INSERT INTO macro (noti_id, category1, category2, deviceid,
-                            updated, command) VALUES ("""
-        sql_query += str(macro[1])  # notification id
+                            updated, command, timeinterval) VALUES ("""
+        sql_query += str(macro.nid)  # notification id
         sql_query += ','
-        sql_query += str(macro[2])  # category 1
+        sql_query += str(macro.cat1)  # category 1
         sql_query += ','
-        sql_query += str(macro[3])  # category 2
+        sql_query += str(macro.cat2)  # category 2
         sql_query += ','
-        sql_query += str(macro[4])  # device ID
+        sql_query += str(macro.devid)  # device ID
         sql_query += ','
-        sql_query += str(macro[5])  # updated time
+        sql_query += str(macro.time)  # updated time
         sql_query += ',"'
-        sql_query += str(macro[6])  # command
-        sql_query += '")'
+        sql_query += str(macro.cmd)  # command
+        sql_query += '",'
+        sql_query += str(macro.interval)  # interval (for timer)
+        sql_query += ')'
 
         # execute query
         try:
@@ -398,7 +406,26 @@ class DBHelper:
             self.cursor.execute(sql_query)
             self.db.commit()
         except:
-            print '    Cannot execute macro insert query!!!'
+            print '    Cannot execute macro(timer) insert query!!!'
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            self.db.rollback()
+            return False
+        return True
+
+    def update_macro_time(self, mid, utime):
+        sql_query = "UPDATE macro SET updated="
+        sql_query += str(utime)
+        sql_query += " WHERE id="
+        sql_query += str(mid)
+        #sql_query += ";"
+        # execute query
+        try:
+            #print sql_query
+            self.cursor.execute(sql_query)
+            self.db.commit()
+        except:
+            print '    Cannot execute timer update query!!!'
             exc_type, exc_value, exc_traceback = sys.exc_info()
             print repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
             self.db.rollback()
@@ -425,7 +452,7 @@ class DBHelper:
             #print sql_query
             self.cursor.execute(sql_query)
             self.db.commit()
-            print sql_query2
+            #print sql_query2
             self.cursor.execute(sql_query2)
             self.db.commit()
         except:
@@ -444,7 +471,7 @@ class DBHelper:
             #print sql_query
             self.cursor.execute(sql_query)
             self.db.commit()
-            print sql_query2
+            #print sql_query2
             self.cursor.execute(sql_query2)
             self.db.commit()
         except:
