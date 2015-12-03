@@ -36,43 +36,36 @@ import telebot
 
 
 
-###########################################
-# Important!!!
-# Configurations: adjust as necessary
-###########################################
-
-# Write your own TOKEN (get from BotFather)
-API_TOKEN = "177988811:AAFaEs8latwX0uDc2ZLw6AnChqOrQ-csWyE"
-CHAT_ID = ""    # leave it blank if you dont know
-
-# Type your MySQL settings
-MYSQL_USER = 'pi'
-MYSQL_DB = 'pidb'
-MYSQL_PASS = 'zjsjf00'
-
-# Weather report (Deprecated!!! do not use this)
-# Get API key from
-# http://openweathermap.org/register 
-# weather_api_key = '96af81ab7e4c79776dd2304623d76e40'
-# weather_location = 'Seoul,kr'
-
-# Camera
-CCTV_URL = ''    # leave it blank if you dont know your IP (not internal IP)
-CCTV_PORT = '8891'  # external port of cctv streaming (you have to set port forwarding)
-CCTV_START_CMD = '/home/pi/tg/bot/start_mjpg.sh'
-CCTV_STOP_CMD = '/home/pi/tg/bot/stop_mjpg.sh'
-PICTURE_DIR = '/home/pi/tg/bot/picture/'
-GRAPH_DIR = '/home/pi/tg/bot/graph/'
-PHOTO_CMD = 'sudo /usr/bin/raspistill -w 640 -h 480 -o '  # adjust as necessary
-
-
-
 ############################################
 # Global variables
 ############################################
 
+# Load configurations
+config = Configurations()
+
 # Telegram bot interface
+CHAT_ID = ""    # leave it blank
+API_TOKEN = config.get_bot_token()
+API_TOKEN.strip()
 bot = telebot.TeleBot(API_TOKEN)
+
+MYSQL_USER = config.get_mysql_user()
+MYSQL_DB = config.get_mysql_db()
+MYSQL_PASS = config.get_mysql_pass()
+
+CCTV_URL = config.get_cctv_url()
+CCTV_URL.strip()
+CCTV_PORT = config.get_cctv_port()
+CCTV_PORT.strip()
+CCTV_START_CMD = config.get_cctv_start_cmd()
+CCTV_STOP_CMD = config.get_cctv_stop_cmd()
+
+PHOTO_CMD = config.get_photo_cmd()
+PICTURE_DIR = config.get_picture_dir()
+PICTURE_DIR.strip()
+GRAPH_DIR = config.get_graph_dir()
+GRAPH_DIR.strip()
+
 # Camera
 is_cctv_active = False
 # Queue
@@ -1004,34 +997,11 @@ def send_photo(message, file):
 start = time.time()
 print start
 
-# Load configurations
-config = Configurations()
-
 # Apply configurations
 env_lang = config.get_language()
 print '    current language setting = ' + env_lang
 set_proto_lang(env_lang)
 set_msg_lang(env_lang)
-
-API_TOKEN = config.get_bot_token()
-API_TOKEN.strip()
-
-MYSQL_USER = config.get_mysql_user()
-MYSQL_DB = config.get_mysql_db()
-MYSQL_PASS = config.get_mysql_pass()
-
-CCTV_URL = config.get_cctv_url()
-CCTV_URL.strip()
-CCTV_PORT = config.get_cctv_port()
-CCTV_PORT.strip()
-CCTV_START_CMD = config.get_cctv_start_cmd()
-CCTV_STOP_CMD = config.get_cctv_stop_cmd()
-
-PHOTO_CMD = config.get_photo_cmd()
-PICTURE_DIR = config.get_picture_dir()
-PICTURE_DIR.strip()
-GRAPH_DIR = config.get_graph_dir()
-GRAPH_DIR.strip()
 
 # Get network IP addr
 if CCTV_URL == '':
