@@ -7,7 +7,7 @@ sys.setdefaultencoding('utf-8')
 import Queue
 import threading
 import time
-from hc_protocol import *
+from HCProtocol import *
 from DeviceInfo import *
 from SensorInfo import *
 from MacroInfo import *

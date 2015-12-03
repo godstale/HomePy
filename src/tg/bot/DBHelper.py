@@ -8,7 +8,7 @@ import time
 import MySQLdb
 
 import traceback
-from hc_protocol import *
+from HCProtocol import *
 from DeviceInfo import *
 from SensorInfo import *
 from MacroInfo import *

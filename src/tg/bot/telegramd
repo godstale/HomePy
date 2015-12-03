@@ -1,0 +1,42 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          telegram-cli
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: telegram cli daemon script
+# Description:       Telegram CLI Daemon Script
+### END INIT INFO
+
+# chkconfig: 2345 80 30
+# description: Telegram CLI Init Script
+
+EXEC_ACCOUNT="pi"
+
+case "$1" in 
+    start)
+        echo "Starting Telegram-cli Deamon"
+    	su - $EXEC_ACCOUNT -c "/home/pi/tg/tg.sh start"
+        ;;
+    stop)
+        #echo "Stopping Telegram-cli Daemon"
+        su - $EXEC_ACCOUNT -c "/home/pi/tg/tg.sh stop"
+        ;;
+    restart)
+        su - $EXEC_ACCOUNT -c "/home/pi/tg/tg.sh stop"
+        su - $EXEC_ACCOUNT -c "/home/pi/tg/tg.sh start"
+        ;;
+    status)
+	su - $EXEC_ACCOUNT -c "/home/pi/tg/tg.sh chk"
+	;;
+    *)
+        echo "Usage: /etc/init.d/telegramd {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+
+exit 0
+
+

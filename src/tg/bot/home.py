@@ -18,14 +18,13 @@ import math
 import subprocess
 from decimal import *
 
-from db_helper import DBHelper
-from serial_thread import SerialThread
-from device_manager_thread import DeviceManagerThread
-from hc_protocol import *
-from message_box import *
-from utilities import *
-from config import Configurations
-from hc_protocol import *
+from DBHelper import DBHelper
+from SerialThread import SerialThread
+from DeviceManagerThread import DeviceManagerThread
+from HCProtocol import *
+from MessageBox import *
+from Utilities import *
+from Configurations import Configurations
 from DeviceInfo import *
 from SensorInfo import *
 from MacroInfo import *
@@ -43,28 +42,28 @@ import telebot
 ###########################################
 
 # Write your own TOKEN (get from BotFather)
-API_TOKEN = "your_bot_TOKEN"
-CHAT_ID = ""    # leave it blank
+API_TOKEN = "177988811:AAFaEs8latwX0uDc2ZLw6AnChqOrQ-csWyE"
+CHAT_ID = ""    # leave it blank if you dont know
 
 # Type your MySQL settings
 MYSQL_USER = 'pi'
 MYSQL_DB = 'pidb'
-MYSQL_PASS = 'your_db_password'
+MYSQL_PASS = 'zjsjf00'
 
 # Weather report (Deprecated!!! do not use this)
 # Get API key from
 # http://openweathermap.org/register 
-# weather_api_key = 'your_api_key'
+# weather_api_key = '96af81ab7e4c79776dd2304623d76e40'
 # weather_location = 'Seoul,kr'
 
 # Camera
-cctv_url = ''    # leave it blank if you dont know your IP (not internal IP)
-cctv_port = '8891'  # external port of cctv streaming (you have to set port forwarding)
-cctv_start_cmd = '/home/pi/tg/bot/start_motion'
-cctv_stop_cmd = '/home/pi/tg/bot/stop_motion'
-picture_dir = '/home/pi/tg/bot/picture/'
-graph_dir = '/home/pi/tg/bot/graph/'
-take_a_picture_cmd = 'sudo /usr/bin/raspistill -w 640 -h 480 -o '  # adjust as necessary
+CCTV_URL = ''    # leave it blank if you dont know your IP (not internal IP)
+CCTV_PORT = '8891'  # external port of cctv streaming (you have to set port forwarding)
+CCTV_START_CMD = '/home/pi/tg/bot/start_mjpg.sh'
+CCTV_STOP_CMD = '/home/pi/tg/bot/stop_mjpg.sh'
+PICTURE_DIR = '/home/pi/tg/bot/picture/'
+GRAPH_DIR = '/home/pi/tg/bot/graph/'
+PHOTO_CMD = 'sudo /usr/bin/raspistill -w 640 -h 480 -o '  # adjust as necessary
 
 
 
@@ -110,7 +109,7 @@ def cmd_slash_exp(message):
 def echo_all(message):
     global is_cctv_active
     global CHAT_ID
-    global cctv_url
+    global CCTV_URL
 
     # update chat id
     CHAT_ID = message.chat.id
@@ -122,7 +121,7 @@ def echo_all(message):
 def parse_command(message, str_cmd):
     global is_cctv_active
     global CHAT_ID
-    global cctv_url
+    global CCTV_URL
 
     # split message
     cmd = str_cmd.strip().split(' ')
@@ -184,18 +183,18 @@ def parse_command(message, str_cmd):
             return
         if cmd[1] == 'on' or cmd[1] == '온':
             if is_cctv_active:
-                send_chat(message, msg_cctv_already_on() + ' ' + cctv_url)
+                send_chat(message, msg_cctv_already_on() + ' ' + CCTV_URL)
                 return
             else:
-                #if cctv_url == '':
-                #    cctv_url = 'http://'
-                #    cctv_url += subprocess.check_output('wget -q http://ip.kiduk.kr && more index.html', shell=True)
-                #    cctv_url += ':' + cctv_port
-                os.system(cctv_start_cmd)
-                send_chat(message, msg_cctv_on() + ' ' + cctv_url)
+                #if CCTV_URL == '':
+                #    CCTV_URL = 'http://'
+                #    CCTV_URL += subprocess.check_output('wget -q http://ip.kiduk.kr && more index.html', shell=True)
+                #    CCTV_URL += ':' + CCTV_PORT
+                os.system(CCTV_START_CMD)
+                send_chat(message, msg_cctv_on() + ' ' + CCTV_URL)
                 is_cctv_active = True
         elif cmd[1] == 'off' or cmd[1] == '오프':
-            os.system(cctv_stop_cmd)
+            os.system(CCTV_STOP_CMD)
             send_chat(message, msg_cctv_off())
             is_cctv_active = False
         return
@@ -204,14 +203,14 @@ def parse_command(message, str_cmd):
     elif cmd[0] == 'pic' or cmd[0] == 'picture' or cmd[0] == '사진':
         # remove pictures in picture directory
         if len(cmd) > 1 and (cmd[1] == 'remove' or cmd[1] == 'del' or cmd[1] == 'delete' or cmd[1] == '삭제' or cmd[1] == '제거'):
-            os.system('rm -f '+picture_dir+'image_*.jpg')
+            os.system('rm -f '+PICTURE_DIR+'image_*.jpg')
             send_chat(message, msg_remove_pictures())
             return
 
         # Stop cctv first
         if is_cctv_active:
             send_chat(message, msg_turnoff_cctv())
-        os.system(cctv_stop_cmd)
+        os.system(CCTV_STOP_CMD)
         is_cctv_active = False
         time.sleep(1)  # Sleep for a while to avoid camera access error
 
@@ -219,11 +218,11 @@ def parse_command(message, str_cmd):
         now = time.localtime()
         pic_file_name = "image_%04d-%02d-%02d_%02d:%02d:%02d" % (now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)
         pic_file_name += '.jpg'
-        os.system(take_a_picture_cmd + picture_dir + pic_file_name)
+        os.system(PHOTO_CMD + ' ' + PICTURE_DIR + pic_file_name)
 
         # Send picture
         try:
-            pic_file = open(picture_dir + pic_file_name, 'rb')
+            pic_file = open(PICTURE_DIR + pic_file_name, 'rb')
             ret_msg = send_photo(message, pic_file)  # message.chat.id
         except:
             send_chat(message, 'Cannot take a picture!!')
@@ -406,7 +405,7 @@ def parse_command(message, str_cmd):
     # Get sensor value and return with graph
     elif cmd[0] == 'graph' or cmd[0] == '그래프':
         if len(cmd) == 2 and (cmd[1] == 'remove' or cmd[1] == 'del' or cmd[1] == 'delete' or cmd[1] == '삭제' or cmd[1] == '제거'):
-            os.system('rm -f '+graph_dir+'graph_*.png')
+            os.system('rm -f '+GRAPH_DIR+'graph_*.png')
             send_chat(message, msg_remove_pictures())
             return
 
@@ -456,13 +455,13 @@ def parse_command(message, str_cmd):
             # burn graph
             cat1, cat2, devid = t_dev.get_ids_at(devnum)
             fname = 'graph_'+str(cat1)+'_'+str(cat2)+'_'+str(devid)+'.png'
-            CairoPlot.dot_line_plot(graph_dir + fname,
+            CairoPlot.dot_line_plot(GRAPH_DIR + fname,
                     datas, width, height,
                     h_labels = h_labels, v_labels = [],
                     axis = True, grid = True, dots = True)
             try:
                 # Send graph
-                pic_file = open(graph_dir + fname, 'rb')
+                pic_file = open(GRAPH_DIR + fname, 'rb')
                 ret_msg = send_photo(message, pic_file)
             except:
                 send_chat(message, msg_cannot_open_graph())
@@ -1007,19 +1006,42 @@ print start
 
 # Load configurations
 config = Configurations()
+
 # Apply configurations
 env_lang = config.get_language()
+print '    current language setting = ' + env_lang
 set_proto_lang(env_lang)
 set_msg_lang(env_lang)
+
+API_TOKEN = config.get_bot_token()
+API_TOKEN.strip()
+
+MYSQL_USER = config.get_mysql_user()
+MYSQL_DB = config.get_mysql_db()
+MYSQL_PASS = config.get_mysql_pass()
+
+CCTV_URL = config.get_cctv_url()
+CCTV_URL.strip()
+CCTV_PORT = config.get_cctv_port()
+CCTV_PORT.strip()
+CCTV_START_CMD = config.get_cctv_start_cmd()
+CCTV_STOP_CMD = config.get_cctv_stop_cmd()
+
+PHOTO_CMD = config.get_photo_cmd()
+PICTURE_DIR = config.get_picture_dir()
+PICTURE_DIR.strip()
+GRAPH_DIR = config.get_graph_dir()
+GRAPH_DIR.strip()
+
 # Get network IP addr
-if cctv_url == '':
-    cctv_url = 'http://'
+if CCTV_URL == '':
+    CCTV_URL = 'http://'
     tempstr = subprocess.check_output('dig +short myip.opendns.com @resolver1.opendns.com', shell=True)
     tempstr.replace('\r', '')
     tempstr.replace('\n', '')
-    cctv_url += tempstr.strip()
-    cctv_url += ':' + cctv_port
-print 'Found external IP = ' + cctv_url
+    CCTV_URL += tempstr.strip()
+    CCTV_URL += ':' + CCTV_PORT
+print 'Found external IP = ' + CCTV_URL
 # Initialize DB
 dbhelper = DBHelper(MYSQL_USER, MYSQL_PASS, MYSQL_DB)
 dbhelper.connect()

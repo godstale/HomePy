@@ -5,6 +5,12 @@
 #  Young Bae Suh, godstale@hotmail.com
 ###########################################
 
+v0.5.5
+- support MJPG Streamer instead of MMAL Motion
+- change file name as class name
+- load user parameters from HomePy.ini
+- add files for service registration
+
 v0.5.4
 - add timer command
 - define major structure as class
