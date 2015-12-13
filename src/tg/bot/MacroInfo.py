@@ -14,4 +14,6 @@ class MacroInfo:
         self.time = 0      # timestamp (for timer)
         self.cmd = ""      # command
         self.interval = 0  # time interval (minute, for timer)
+        self.hour = 0      # reserved time - hour (0~23)
+        self.minute = 0    # reserved time - minute (0~59)
 

@@ -5,6 +5,14 @@
 #  Young Bae Suh, godstale@hotmail.com
 ###########################################
 
+v0.5.6
+- add time based timer command
+- fix timer check routine bug
+- add 'chat' command (send text to chat)
+- add watcher process (check main process and run again if it's terminated by accident)
+- enhance process kill routine in shell script file
+- update protocol document
+
 v0.5.5
 - support MJPG Streamer instead of MMAL Motion
 - change file name as class name

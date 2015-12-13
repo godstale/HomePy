@@ -384,7 +384,7 @@ class DBHelper:
 
     def add_macro(self, macro):
         sql_query = """INSERT INTO macro (noti_id, category1, category2, deviceid,
-                            updated, command, timeinterval) VALUES ("""
+                            updated, command, timeinterval, temp1, temp2) VALUES ("""
         sql_query += str(macro.nid)  # notification id
         sql_query += ','
         sql_query += str(macro.cat1)  # category 1
@@ -398,6 +398,10 @@ class DBHelper:
         sql_query += str(macro.cmd)  # command
         sql_query += '",'
         sql_query += str(macro.interval)  # interval (for timer)
+        sql_query += ','
+        sql_query += str(macro.hour)  # reserved time - hour (0~23)
+        sql_query += ','
+        sql_query += str(macro.minute)  # reserved time - minute (0~59)
         sql_query += ')'
 
         # execute query

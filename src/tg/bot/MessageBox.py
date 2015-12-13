@@ -382,9 +382,9 @@ def msg_timer_del_fail():
 
 def msg_add_timer_param():
     if msg_lang == 'kr':
-        return '타이머 추가 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 추가할 수 있습니다.\n\n타이머 추가 (시간간격/분) (명령문)\n\n예) 타이머 추가 10 제어 1 5'
+        return '타이머 추가 파라미터에 오류가 있습니다!! 아래와 같은 명령으로 추가할 수 있습니다.\n\n타이머 추가 (시간간격/분) (명령문)\n\n예) 타이머 추가 10 제어 1 5\n  타이머 추가 13:55 제어 1 5'
     else:
-        return 'Invalid parameters!! Use command like below:\n\ntimer add (interva/min) (command)\n\nEx) timer add 10 send 1 5'
+        return 'Invalid parameters!! Use command like below:\n\ntimer add (interva/min) (command)\n\nEx) timer add 10 send 1 5\n  timer add 13:55 send 1 5'
 
 def msg_invalid_timer_id():
     if msg_lang == 'kr':
@@ -410,6 +410,9 @@ def msg_help_text():
     if msg_lang == 'kr':
         msg = """hello
 홈파이 서버가 응답 가능한지 확인.
+
+chat (메시지)
+현재 활성화된 대화창에 메시지를 출력
 
 ping (장치넘버)
 지정한 장치에 ping 신호를 보내 응답이 오는지 확인. 장치가 동작중인지 확인.
@@ -481,6 +484,9 @@ timer
 timer add (시간간격/분) (명령어)
 일정 시간 간격으로 명령어를 자동 실행하도록 설정
 
+timer add (시):(분) (명령어)
+특정 시간에 명령어를 실행하도록 설정
+
 timer del (타이머ID)
 지정한 타이머 삭제
 """
@@ -488,6 +494,9 @@ timer del (타이머ID)
     else:
         msg = """hello
 : Check if HomePy is available
+
+chat (message)
+: Send message to activated chat room
 
 ping (device_number)
 : Check if specified device is active or not
@@ -557,7 +566,10 @@ timer
 Show every timer.
 
 timer add (interval/min) (command)
-Add a timer.\nex) timer add 10 pic => Take a picture every 10 minute.
+Add an interval based timer.\nex) timer add 10 pic => Take a picture every 10 minute.
+
+timer add (hour):(min) (command)
+Add a time based timer.\nex) timer add 13:55 pic => Take a picture at 13:55.
 
 macro del (timer_ID)
 delete a timer.

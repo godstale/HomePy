@@ -2,10 +2,9 @@
  
 HPPATH="/home/pi/tg/bot"
 HPBIN_PATH="/home/pi/tg/bot"
-HPBIN_NAME="python home.py"
-HPBIN_WATCHER="./hpwatcher.sh"
+HPBIN_NAME="python hpwatcher.py"
 HPBIN_CHECK="python"
-HPBIN_CHECK2="home.py"
+HPBIN_CHECK2="hpwatcher.py"
  
 function ProcChk()
 {
@@ -22,40 +21,37 @@ function ProcChk()
  
 case "$1" in
 start)
-    echo "Starting HomePy Daemon..."
+    echo "Starting HomePy process watcher..."
     cd $HPPATH
     PID=`/bin/ps aux | /bin/grep -w $HPBIN_CHECK | /bin/grep -w $HPBIN_CHECK2 | /usr/bin/awk '{print $2}'`
  
     if [ $PID ]; then
-        echo "HomePy Already Running"
+        echo "HomePy process watcher is already running"
         # exit 1
     else
         export PYTHONPATH="$HOME/lib/python2.7/site-packages/:$PYTHONPATH"
         $HPBIN_NAME &
-        $HPBIN_WATCHER start
         ProcChk "$HPBIN_CHECK" "$HPBIN_CHECK2" "HomePy Daemon"
     fi
     ;;
 stop)
-    echo "HomePy safe stop Trying"
+    echo "HomePy process watcher safe stop Trying"
     `echo "safe_quit" | nc localhost 4500`
  
     PID=`/bin/ps aux | /bin/grep -w $HPBIN_CHECK | /bin/grep -w $HPBIN_CHECK2 | /usr/bin/awk '{print $2}'`
  
     if [ -z $PID ]; then
-        echo "HomePy Already Stop"
+        echo "HomePy process watcher is already stopped"
         # exit 1
     else
         kill -9 $PID
-        cd $HPPATH
-        $HPBIN_WATCHER stop
     fi
  
     sleep 1
-    ProcChk "$HPBIN_CHECK" "$HPBIN_CHECK2" "HomePy Daemon"
+    ProcChk "$HPBIN_CHECK" "$HPBIN_CHECK2" "HomePy process watcher"
     ;;
 chk)
-    ProcChk "$HPBIN_CHECK" "$HPBIN_CHECK2" "HomePy Daemon"
+    ProcChk "$HPBIN_CHECK" "$HPBIN_CHECK2" "HomePy process watcher"
     ;;
 *)
     echo "Usage : `basename $0` [ start | stop | chk ]"

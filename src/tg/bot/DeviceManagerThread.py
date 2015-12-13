@@ -495,9 +495,19 @@ class DeviceManagerThread(threading.Thread):
     def check_timer_macro(self):
         count = 0
         for row in self.macro:
-            # check only timer macro
+            # check interval timer macro
             if row.interval > 0:
                 if row.time + row.interval*60 < time.time():
+                    row.time = time.time()
+                    self.db.update_macro_time(row.id, row.time)
+                    self.callback(CALLBACK_TYPE_MACRO, None, row.cmd)  # process command
+                    count += 1
+            # check reserved timer macro
+            elif row.interval < 1 and row.nid < 0:
+                now = time.localtime()
+                if now.tm_hour == row.hour and now.tm_min == row.minute:
+                    row.time = time.time()
+                    self.db.update_macro_time(row.id, row.time)
                     self.callback(CALLBACK_TYPE_MACRO, None, row.cmd)  # process command
                     count += 1
         return count
@@ -515,6 +525,8 @@ class DeviceManagerThread(threading.Thread):
             a_macro.time = int(row[5])    # updated
             a_macro.cmd = row[6]    # command
             a_macro.interval = int(row[7])    # interval (for timer)
+            a_macro.hour = int(row[8])    # reserved time (hour, for timer)
+            a_macro.minute = int(row[9])    # reserved time (min, for timer)
             self.add_macro_to_list(a_macro)
 
     # Get all macro

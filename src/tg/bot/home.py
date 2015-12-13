@@ -124,6 +124,15 @@ def parse_command(message, str_cmd):
         send_chat(message, msg_welcome())
         return
 
+    # Send chat message
+    if cmd[0] == 'chat' or cmd[0] == '챗':
+        if len(cmd) > 1:
+            str_msg = 'Bot msg: '
+            for index in range(1, len(cmd)):
+                str_msg += cmd[index] + ' '
+            str_msg.strip()
+            send_chat(message, str_msg)
+
     # Ping test
     elif cmd[0] == 'help' or cmd[0] == '도움말':
         send_chat(message, msg_help_text())
@@ -735,7 +744,7 @@ def parse_command(message, str_cmd):
             macros = t_dev.get_macro_list()
             count = 0
             for macro in macros:
-                if macro.interval > 0:  # this is timer-macro
+                if macro.interval > 0 or macro.nid < 0:  # filtering macro
                     continue
                 strmsg += msg_macro() + ' ID = ' + str(macro.id) + '\n'
                 strmsg += '-> If ' + msg_noti() + 'ID == ' + str(macro.nid) + ', Do : '
@@ -826,10 +835,13 @@ def parse_command(message, str_cmd):
             macros = t_dev.get_macro_list()
             count = 0
             for macro in macros:
-                if macro.interval < 1:  # filter out noti-triggered macro
+                if macro.nid > -1:  # filter out noti-triggered macro
                     continue
                 strmsg += msg_timer() + ' ID = ' + str(macro.id) + '\n'
-                strmsg += '-> Every ' + str(macro.interval) + ' min, Do : '
+                if macro.interval < 1:  # time based timer
+                    strmsg += '-> At ' + str(macro.hour) + ':' + str(macro.minute) + ', Do : '
+                else:    # interval based timer
+                    strmsg += '-> Every ' + str(macro.interval) + ' min, Do : '
                 strmsg += macro.cmd + '\n'
                 count += 1
             if count > 0:
@@ -865,11 +877,27 @@ def parse_command(message, str_cmd):
                 send_chat(message, msg_add_timer_param())
                 return
             interval = -1
+            ihour = 0
+            imin = 0
+            # time interval timer
             if cmd[2].isdigit():
                 interval = int(cmd[2])
+            # reserved time
             else:
-                send_chat(message, msg_add_timer_param())
-                return
+                if cmd[2].find(':') < 0:
+                    send_chat(message, msg_add_timer_param())
+                    return
+                else:
+                    tmpstr = cmd[2].split(':')
+                    if len(tmpstr) != 2:
+                        send_chat(message, msg_add_timer_param())
+                        return
+                    if tmpstr[0].isdigit() and tmpstr[1].isdigit():
+                        ihour = int(tmpstr[0])
+                        imin = int(tmpstr[1])
+                    else:
+                        send_chat(message, msg_add_timer_param())
+                        return
             str_cmd = ""
             for index in range(3, len(cmd)):
                 str_cmd += cmd[index] + ' '
@@ -878,10 +906,12 @@ def parse_command(message, str_cmd):
             o_macro.time = int(time.time())  # updated
             o_macro.cmd = str_cmd        # command
             o_macro.interval = interval  # interval (for timer)
+            o_macro.hour = ihour         # reserved time - hour
+            o_macro.minute = imin        # reserved time - min
             if t_dev.add_macro(o_macro):
-                send_chat(message, msg_add_macro_success())
+                send_chat(message, msg_add_timer_success())
             else:
-                send_chat(message, msg_add_macro_fail())
+                send_chat(message, msg_add_timer_fail())
             return
 
     # End of echo_all(message)
