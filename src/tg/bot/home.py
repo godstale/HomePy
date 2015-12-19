@@ -33,6 +33,7 @@ from NotiInfo import *
 
 # Telegram python interface
 import telebot
+from telebot import types
 
 
 
@@ -44,7 +45,10 @@ import telebot
 config = Configurations()
 
 # Telegram bot interface
-CHAT_ID = ""    # leave it blank
+CHAT_ID = 0
+tmpid = config.get_chat_id()
+if tmpid.isdigit():
+    CHAT_ID = int(tmpid)
 API_TOKEN = config.get_bot_token()
 API_TOKEN.strip()
 bot = telebot.TeleBot(API_TOKEN)
@@ -71,7 +75,8 @@ is_cctv_active = False
 # Queue
 recv_queue = Queue.Queue()
 send_queue = Queue.Queue()
-
+# Keypad
+keypad_target_dev = -1
 
 
 
@@ -85,16 +90,109 @@ send_queue = Queue.Queue()
 #def cctv_off(message):
 #    send_chat(message, 'Sorry, not implemented yet...')
 
-# Alias slash command
-# : Only slash command is allowed in group chat
-@bot.message_handler(regexp="^/{1}[^/]")
-def cmd_slash_exp(message):
+# Slash commands and markup command handler
+# : Only slash commands are allowed in group chat.
+# : check if string starts with '/'
+# : or filtering '[xxxxx]' string
+@bot.message_handler(regexp="[^/{1}[^/]|^\[[[:alnum:]]+\]$]")
+def bot_slash_cmd(message):
     global CHAT_ID
 
+    # Markup command handler
+    # Music
+    if message.text == '[prev]':
+        results = subprocess.check_output('mpc prev', shell=True)
+        send_chat(message, 'Music: play previous song.\n' + results)
+        return
+    elif message.text == '[play]':
+        results = subprocess.check_output('mpc toggle', shell=True)
+        send_chat(message, 'Music: toggle play/pause\n' + results)
+        return
+    elif message.text == '[next]':
+        results = subprocess.check_output('mpc next', shell=True)
+        send_chat(message, 'Music: play next song.\n' + results)
+        return
+    elif message.text == '[pause]':
+        results = subprocess.check_output('mpc toggle', shell=True)
+        send_chat(message, 'Music: toggle play/pause\n' + results)
+        return
+    elif message.text == '[stop]':
+        results = subprocess.check_output('mpc stop', shell=True)
+        send_chat(message, 'Music: stop playing\n' + results)
+        return
+    elif message.text == '[exit]':
+        markup = types.ReplyKeyboardHide(selective=False)
+        bot.send_message(message.chat.id, "Music controller closed.", reply_markup=markup)
+        return
+    elif message.text == '[random]':
+        results = subprocess.check_output('mpc random', shell=True)
+        send_chat(message, 'Music: toggle random mode\n' + results)
+        return
+    elif message.text == '[repeat]':
+        results = subprocess.check_output('mpc repeat', shell=True)
+        send_chat(message, 'Music: toggle repeat mode\n' + results)
+        return
+    elif message.text == '[consume]':
+        results = subprocess.check_output('mpc consume', shell=True)
+        send_chat(message, 'Music: toggle consume mode\n' + results)
+        return
+    # Keypad
+    elif message.text == '[Enter]':
+        send_keycode(message, 10)
+        return
+    elif message.text == '[/]':
+        send_keycode(message, 47)
+        return
+    elif message.text == '[*]':
+        send_keycode(message, 42)
+        return
+    elif message.text == '[-]':
+        send_keycode(message, 45)
+        return
+    elif message.text == '[7]':
+        send_keycode(message, 55)
+        return
+    elif message.text == '[8]':
+        send_keycode(message, 56)
+        return
+    elif message.text == '[9]':
+        send_keycode(message, 57)
+        return
+    elif message.text == '[+]':
+        send_keycode(message, 43)
+        return
+    elif message.text == '[4]':
+        send_keycode(message, 52)
+        return
+    elif message.text == '[5]':
+        send_keycode(message, 53)
+        return
+    elif message.text == '[6]':
+        send_keycode(message, 54)
+        return
+    elif message.text == '[.]':
+        send_keycode(message, 46)
+        return
+    elif message.text == '[1]':
+        send_keycode(message, 49)
+        return
+    elif message.text == '[2]':
+        send_keycode(message, 50)
+        return
+    elif message.text == '[3]':
+        send_keycode(message, 51)
+        return
+    elif message.text == '[0]':
+        send_keycode(message, 48)
+        return
+
     # update chat id
+    if CHAT_ID < 1:
+        config.set_chat_id(message.chat.id)
     CHAT_ID = message.chat.id
     escaped = message.text.replace('/', '')
     parse_command(message, escaped)
+
 
 # Nomal text handler
 # : for 1:1 chat with bot
@@ -105,13 +203,15 @@ def echo_all(message):
     global CCTV_URL
 
     # update chat id
+    if CHAT_ID < 1:
+       config.set_chat_id(message.chat.id)
     CHAT_ID = message.chat.id
-
     parse_command(message, message.text)
     pass
 
 # Parse command
 def parse_command(message, str_cmd):
+    global keypad_target_dev
     global is_cctv_active
     global CHAT_ID
     global CCTV_URL
@@ -176,6 +276,129 @@ def parse_command(message, str_cmd):
             send_chat(message, msg_lang_changed())
             return
         send_chat(message, msg_invalid_param())
+        return
+
+    # Control MPD (need MPC)
+    elif cmd[0] == 'mpc' or cmd[0] == 'music' or cmd[0] == '음악' or cmd[0] == '뮤직':
+        # show queued songs
+        if len(cmd) < 2:
+            results = subprocess.check_output('mpc playlist', shell=True)
+            a_res = results.split('\n')
+            disp_str = ''
+            index = 1
+            for item in a_res:
+                if item != '':
+                    disp_str += str(index) + '. ' + item + '\n'
+                    index += 1
+            send_chat(message, '[] '+msg_current_queue()+': \n' + disp_str)
+            return
+
+        # play
+        elif cmd[1] == 'play' or cmd[1] == '재생' or cmd[1] == '플레이':
+            # play
+            if len(cmd) < 3:
+                results = subprocess.check_output('mpc play', shell=True)
+                send_chat(message, results)
+                return
+            # check parameter: playlist number
+            if cmd[2].isdigit() == False:
+                send_chat(message, msg_invalid_playlist())
+                return
+            # push playlist into current queue
+            tmpcheck = subprocess.check_output('mpc play '+cmd[2], shell=True)
+            send_chat(message, tmpcheck)
+            return
+
+        # stop
+        elif cmd[1] == 'stop' or cmd[1] == '정지':
+            tmpcheck = subprocess.check_output('mpc stop', shell=True)
+            send_chat(message, tmpcheck)
+            return
+
+        # playlist handler
+        elif cmd[1] == 'playlist' or cmd[1] == '재생목록':
+            # show playlists
+            if len(cmd) < 3:
+                results = subprocess.check_output('mpc lsplaylists', shell=True)
+                a_res = results.split('\n')
+                disp_str = ''
+                index = 1
+                for item in a_res:
+                    if item != '':
+                        disp_str += str(index) + '. ' + item + '\n'
+                        index += 1
+                send_chat(message, '[*] Playlists: \n' + disp_str)
+                return
+            # check parameter: playlist number
+            if cmd[2].isdigit() == False:
+                send_chat(message, msg_invalid_playlist())
+                return
+            # push playlist into current queue
+            playlist_num = int(cmd[2])
+            results = subprocess.check_output('mpc lsplaylists', shell=True)
+            a_res = results.split('\n')
+            disp_str = ''
+            index = 1
+            selected = 0
+            for item in a_res:
+                if item != '':
+                    if playlist_num == index:
+                        disp_str = item
+                        selected = index
+                    index += 1
+            if selected > 0:
+                tmpcheck = subprocess.check_output('mpc current', shell=True)
+                if tmpcheck == '' or tmpcheck is None or len(tmpcheck) < 3:
+                    # current status: stopped - clear all
+                    subprocess.check_output('mpc clear', shell=True)
+                else:
+                    # current status: stopped - clear except current playing
+                    subprocess.check_output('mpc crop', shell=True)
+                results = subprocess.check_output('mpc load '+disp_str, shell=True)
+                send_chat(message, 'Playlist '+msg_changed_to()+' \n' + disp_str)
+            else:
+                send_chat(message, msg_invalid_playlist())
+            return
+
+        # control panel
+        if cmd[1] == 'ctrl' or cmd[1] == 'control' or cmd[1] == '리모콘' or cmd[1] == '컨트롤':
+            if len(cmd) > 2 and (cmd[2] == 'off' or cmd[2] == '닫기' or cmd[2]=='오프'):
+                markup = types.ReplyKeyboardHide(selective=False)
+                bot.send_message(CHAT_ID, 'Music '+msg_control_panel_closed(), reply_markup=markup)
+            else:
+                markup = types.ReplyKeyboardMarkup(row_width=3)
+                markup.add('[prev]', '[play]', '[next]', '[pause]', '[stop]', '[exit]', '[random]', '[repeat]', '[consume]')
+                bot.send_message(CHAT_ID, 'Music '+msg_control_panel()+': ', reply_markup=markup)
+            return
+
+    # Keypad: control panel
+    if cmd[0] == 'keypad' or cmd[0] == 'control' or cmd[0] == '키패드' or cmd[0] == '컨트롤':
+        # close keypad
+        if len(cmd) > 1 and (cmd[1] == 'off' or cmd[1] == 'close' or cmd[1] == '닫기' or cmd[1]=='오프'):
+            markup = types.ReplyKeyboardHide(selective=False)
+            bot.send_message(CHAT_ID, msg_keypad()+' '+msg_control_panel_closed(), reply_markup=markup)
+        # show current target device
+        elif len(cmd) == 2 and (cmd[1] == 'dev' or cmd[1] == 'set' or cmd[1] == '장치' or cmd[1]=='설정'):
+            send_chat(message, msg_k+' = '+str(keypad_target_dev))
+        # set target device
+        elif len(cmd) > 2 and (cmd[1] == 'dev' or cmd[1] == 'set' or cmd[1] == '장치' or cmd[1]=='설정'):
+            if cmd[2].isdigit():
+                devnum = -1
+                devnum = int(cmd[2])
+                device = t_dev.get_device_at(devnum)
+                if device is None:
+                    send_chat(message, msg_wrong_device())
+                    return;
+                keypad_target_dev = devnum
+                send_chat(message, msg_keypad_set_dev()+' : '+str(keypad_target_dev))
+            else:
+                send_chat(message, msg_wrong_device())
+            return
+        # open keypad
+        else:
+            markup = types.ReplyKeyboardMarkup(row_width=4)
+            markup.add('[/]', '[*]', '[+]', '[-]', '[7]', '[8]', '[9]', '[Enter]', '[4]', '[5]', '[6]', '[.]', '[1]', '[2]', '[3]', '[0]')
+            bot.send_message(CHAT_ID, msg_keypad()+': ', reply_markup=markup)
         return
 
     # cctv command
@@ -389,7 +612,13 @@ def parse_command(message, str_cmd):
             devnum = -1
             if cmd[1].isdigit():
                 devnum = int(cmd[1])
-            is_avail, infos = t_dev.get_sensor_val(devnum, count)
+            if devnum < 0:
+                send_chat(message, msg_wrong_device())
+                return
+            infos = t_dev.get_sensor_val(devnum, count)
+            if infos is None or len(infos):
+                send_chat(message, msg_wrong_device())
+                return
             msg = ''
             i = 0
             for info in infos:
@@ -424,7 +653,13 @@ def parse_command(message, str_cmd):
         devnum = -1
         if cmd[1].isdigit():
             devnum = int(cmd[1])
-        is_avail, infos = t_dev.get_sensor_val(devnum, count)
+        if devnum < 0:
+            send_chat(message, msg_wrong_device())
+            return
+        infos = t_dev.get_sensor_val(devnum, count)
+        if infos is None or len(infos):
+            send_chat(message, msg_wrong_device())
+            return
         # making data list
         i = 0
         datas = [[], [], [], []]
@@ -1005,6 +1240,12 @@ def device_thread_callback(type, recv, command):
     # End of device_thread_callback()
     return
 
+
+
+############################################
+# Private functions
+############################################
+
 def send_chat(message, str_msg):
     if message is None:
         bot.send_message(CHAT_ID, str_msg)
@@ -1012,11 +1253,36 @@ def send_chat(message, str_msg):
         bot.reply_to(message, str_msg)
     return
 
+# Send key code to selected device
+def send_keycode(message, keycode):
+    if keypad_target_dev < 0:
+        send_chat(message, msg_wrong_device())
+        return
+    device = t_dev.get_device_at(keypad_target_dev)
+    if device is None:
+        send_chat(message, msg_wrong_device())
+        return;
+    # send device control signal to remote
+    t_ser.send_control_signal(device.cat1, device.cat2, device.devid, keycode, 0, 0, 0)
+    send_chat(message, msg_sent_signal() % keypad_target_dev)
+    return
+
 def send_photo(message, file):
     if message is None:
         ret_msg = bot.send_photo(CHAT_ID, file)
     else:
         ret_msg = bot.send_photo(message.chat.id, file)
+
+def finalize():
+    print '\nCleaning up the resources...'
+    config.set_chat_id(str(CHAT_ID))
+    dbhelper.close()
+    t_ser.close()
+    t_dev.close()
+    recv_queue.join()    # block until all tasks are done
+    send_queue.join()
+    print "Elapsed Time: %s" % (time.time() - start)
+    print "Bye~\n\n"
 
 
 
@@ -1068,8 +1334,7 @@ if __name__ == '__main__':
         #
         # Instantiate telegram interface
         print 'Start polling from telegram...'
-        print ' '
-        print ' '
+        print '==================================================\n'
         bot.polling()
 
         # Telegram polling() function stops the main procedure
@@ -1079,28 +1344,12 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         # Quit gracefully
-        print ' '
-        print 'Keyboard interrupt'
-        print 'Cleaning up the resources...'
-        dbhelper.close()
-        t_ser.close()
-        t_dev.close()
-        recv_queue.join()    # block until all tasks are done
-        send_queue.join()
-        print "Elapsed Time: %s" % (time.time() - start)
+        print '\n\nKeyboard interrupt !!!!!'
+        finalize()
         try:
             sys.exit(0)
         except SystemExit:
             os._exit(0)
 
 # Quit gracefully
-print ' '
-print 'Cleaning up the resources...'
-dbhelper.close()
-t_ser.close()
-t_dev.close()
-recv_queue.join()    # block until all tasks are done
-send_queue.join()
-
-print "Elapsed Time: %s" % (time.time() - start)
-
+finalize()

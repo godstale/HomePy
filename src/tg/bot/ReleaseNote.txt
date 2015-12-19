@@ -5,11 +5,17 @@
 #  Young Bae Suh, godstale@hotmail.com
 ###########################################
 
+v0.5.7
+- fix chat_id bug (cannot send chat after process restarts)
+- Add keypad command
+- fix mjpg streamer bug. Always make /tmp/stream on streamer boot-up
+
 v0.5.6
 - add time based timer command
 - fix timer check routine bug
 - add 'chat' command (send text to chat)
-- add watcher process (check main process and run again if it's terminated by accident)
+- add watcher process (check main process and run again if it's
+terminated by accident)
 - enhance process kill routine in shell script file
 - update protocol document
 
@@ -42,4 +48,3 @@ v0.5.1
 
 v0.5
 Initial commit
-

@@ -250,7 +250,7 @@ class DeviceManagerThread(threading.Thread):
             is_avail *= 13
         # reverse list order (move recent item to last)
         infos.reverse()
-        return is_avail, infos
+        return infos
 
     # Delete sensor records of specified device
     # num is ordering number, not an array index

@@ -404,6 +404,54 @@ def msg_add_timer_fail():
     else:
         return 'Cannot add timer!!'
 
+def msg_current_queue():
+    if msg_lang == 'kr':
+        return '재생목록'
+    else:
+        return 'Current queue'
+
+def msg_invalid_playlist():
+    if msg_lang == 'kr':
+        return '플레이리스트를 잘못 지정하셨습니다!!'
+    else:
+        return 'Invalid playlist number!!'
+
+def msg_changed_to():
+    if msg_lang == 'kr':
+        return '변경'
+    else:
+        return 'changed to'
+
+def msg_control_panel_closed():
+    if msg_lang == 'kr':
+        return '컨트롤 패널을 닫습니다.'
+    else:
+        return 'control panel closed.'
+
+def msg_control_panel():
+    if msg_lang == 'kr':
+        return '컨트롤 패널'
+    else:
+        return 'control panel'
+
+def msg_keypad():
+    if msg_lang == 'kr':
+        return '키패드'
+    else:
+        return 'control panel'
+
+def msg_keypad_set_dev():
+    if msg_lang == 'kr':
+        return '키패드 컨트롤 장치를 설정하였습니다.'
+    else:
+        return 'Set target device for keypad.'
+
+def msg_keypad_cur_dev():
+    if msg_lang == 'kr':
+        return '키패드 컨트롤 장치'
+    else:
+        return 'Target device for keypad'
+
 
 
 def msg_help_text():
@@ -489,6 +537,24 @@ timer add (시):(분) (명령어)
 
 timer del (타이머ID)
 지정한 타이머 삭제
+
+music
+현재 재생목록에 포함된 음악들을 표시
+
+music play (음악넘버)
+선택한 음악을 재생. 음악넘버를 생략할 경우 처음부터 재생.
+
+music stop
+음악 재생을 중단
+
+music playlist
+저장된 playlist들을 출력. 
+
+music playlist (playlist 넘버)
+재생목록을 지우고 선택한  playlist의 음악들을 추가 
+
+music control (on/off)
+음악 컨트롤 패널을 표시, 제거.
 """
         return msg
     else:
@@ -572,7 +638,25 @@ timer add (hour):(min) (command)
 Add a time based timer.\nex) timer add 13:55 pic => Take a picture at 13:55.
 
 macro del (timer_ID)
-delete a timer.
+Delete a timer.
+
+music
+Show music files in queue.
+
+music play (music number)
+Play selected music. If music number is not specified, starts at first.
+
+music stop
+Stop playing.
+
+music playlist
+Show playlists.
+
+music playlist (playlist number)
+Delete all queued files and add files in selected playlist. 
+
+music control (on/off)
+Enable/Disable music control panel.
 """
         return msg
 

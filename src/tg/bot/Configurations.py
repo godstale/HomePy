@@ -13,6 +13,7 @@ SECTION_GLOBAL = 'GlobalParam'
 OPTION_LANG = 'language'
 SECTION_PRIVATE = 'PrivateParam'
 OPTION_BOT_TOKEN = 'api_token'
+OPTION_CHATID = 'chat_id'
 OPTION_MYSQL_USER = 'mysql_user'
 OPTION_MYSQL_DB = 'mysql_db'
 OPTION_MYSQL_PASS = 'mysql_pass'
@@ -67,6 +68,20 @@ class Configurations:
         else:
             print '    Cannot find telegram bot token!!'
             return ''
+
+    # chat ID
+    def get_chat_id(self):
+        if self.config.has_section(SECTION_PRIVATE) and self.config.has_option(SECTION_PRIVATE, OPTION_CHATID):
+            return self.config.get(SECTION_PRIVATE, OPTION_CHATID)
+        else:
+            self.set_language('0')
+            return '0'
+
+    def set_chat_id(self, chat_id):
+        self.config.set(SECTION_PRIVATE, OPTION_CHATID, str(chat_id))
+        # Write configurations to 'HomePy.ini'
+        with open(self.PATH, 'wb') as configfile:
+            self.config.write(configfile)
 
     # mysql parameters
     def get_mysql_user(self):
