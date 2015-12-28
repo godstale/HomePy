@@ -1,9 +1,14 @@
 ###########################################
 #  HomePy : Control home with telegram messenger
 #  
-#  By http://www.hardcopyworld.com
-#  Young Bae Suh, godstale@hotmail.com
+#  By Young Bae Suh, godstale@hotmail.com
+#  Check details at
+#  http://www.hardcopyworld.com
 ###########################################
+
+v0.5.8
+- fix device id bug in sensor/graph command
+- Add logging (save log as homepy.log : default level is WARNING)
 
 v0.5.7
 - fix chat_id bug (cannot send chat after process restarts)

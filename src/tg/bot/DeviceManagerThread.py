@@ -7,6 +7,8 @@ sys.setdefaultencoding('utf-8')
 import Queue
 import threading
 import time
+import logging
+
 from HCProtocol import *
 from DeviceInfo import *
 from SensorInfo import *
@@ -61,6 +63,7 @@ class DeviceManagerThread(threading.Thread):
                         found = self.update_device(recv)
                         # push to DB
                         self.db.add_device(recv, found)
+                        logging.warning('Register device: name = '+recv.name)
 
                     elif recv.cmd == 81: # 0x51 : Update sensor data
                         # check if device is exist
@@ -75,6 +78,7 @@ class DeviceManagerThread(threading.Thread):
                                 print '    Found %d macro...' % count
                                 if count < 1:
                                     self.callback(CALLBACK_TYPE_NOTI, recv, "")  # send notification
+                            logging.warning('Update sensor value: cat1 = %d, cat2 = %d, devid = %d' % (recv.cat1, recv.cat2, recv, devid))
 
                     elif recv.cmd == 1: # 0x01 : Ping response
                         print '    Received Ping response...'
@@ -106,6 +110,7 @@ class DeviceManagerThread(threading.Thread):
     # Load device informations from DB
     def load_devices(self):
         results = self.db.select_all_device()
+        logging.warning('Load device info from DB: count = '+str(len(results)))
         for row in results:
             device_info = DeviceInfo()
             device_info.objtype = 1    # queue item type
@@ -125,6 +130,7 @@ class DeviceManagerThread(threading.Thread):
             device_info.loc = row[5]  # location
             device_info.time = int(row[6])  # timestamp
             self.add_device_to_list(device_info)
+        return
 
     # Get specified device info
     # num is ordering number, not an array index
@@ -267,6 +273,7 @@ class DeviceManagerThread(threading.Thread):
     # Load notifications from DB
     def load_noti(self):
         results = self.db.select_all_noti()
+        logging.warning('Load notifications from DB: count = '+str(len(results)))
         for row in results:
             noti = NotiInfo()
             noti.id = int(row[0])     # id
@@ -515,6 +522,7 @@ class DeviceManagerThread(threading.Thread):
     # Load macro from DB
     def load_macro(self):
         results = self.db.select_all_macro()
+        logging.warning('Load macro info from DB: count = '+str(len(results)))
         for row in results:
             a_macro = MacroInfo()
             a_macro.id = int(row[0])    # id

@@ -7,6 +7,7 @@ sys.setdefaultencoding('utf-8')
 import Queue
 import threading
 import time
+import logging
 
 import serial
 import urllib2
@@ -78,6 +79,8 @@ send_queue = Queue.Queue()
 # Keypad
 keypad_target_dev = -1
 
+# Logging
+logging.basicConfig(filename='homepy.log',level=logging.WARNING)
 
 
 
@@ -475,6 +478,7 @@ def parse_command(message, str_cmd):
             else:
                 msg += msg_devdesc_command()
             send_chat(message, msg)
+            return
         # Device - Show device details
         elif cmd[1] == 'desc' or cmd[1] == 'detail' or cmd[1] == '상세':
             if len(cmd) >= 3:
@@ -616,8 +620,8 @@ def parse_command(message, str_cmd):
                 send_chat(message, msg_wrong_device())
                 return
             infos = t_dev.get_sensor_val(devnum, count)
-            if infos is None or len(infos):
-                send_chat(message, msg_wrong_device())
+            if infos is None or len(infos) < 1:
+                send_chat(message, msg_no_matching_result())
                 return
             msg = ''
             i = 0
@@ -657,8 +661,8 @@ def parse_command(message, str_cmd):
             send_chat(message, msg_wrong_device())
             return
         infos = t_dev.get_sensor_val(devnum, count)
-        if infos is None or len(infos):
-            send_chat(message, msg_wrong_device())
+        if infos is None or len(infos) < 1:
+            send_chat(message, msg_no_matching_result())
             return
         # making data list
         i = 0
@@ -1223,6 +1227,7 @@ CALLBACK_TYPE_MACRO = 2
 def device_thread_callback(type, recv, command):
     if type == CALLBACK_TYPE_NOTI:
         if recv is None:
+            logging.warning('    dev thread callback: Critical error!!! recv is not an object!!!')
             print '    dev thread callback: Critical error!!! recv is not an object!!!'
             return
         msg = ''
@@ -1234,9 +1239,10 @@ def device_thread_callback(type, recv, command):
         msg += ", ID=" + str(recv.devid)
         msg += "\n\n" + msg_noti_received()
         send_chat(None, msg)
+        logging.warning('Noti callback launched!! device = ' + recv.name)
     elif type == CALLBACK_TYPE_MACRO:
         parse_command(None, command)
-        print '    macro command = ' + command
+        logging.warning('Macro run with command: ' + command)
     # End of device_thread_callback()
     return
 
