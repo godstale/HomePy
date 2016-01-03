@@ -9,6 +9,8 @@ import threading
 import serial
 import time
 import array
+import logging
+
 from DeviceInfo import *
 
 
@@ -87,7 +89,8 @@ class SerialThread(threading.Thread):
 
                 # ping response
                 if device_info.cmd == CMD_PING:
-                    print '    Command : Ping response'
+                    #print '    Command : Ping response'
+                    logging.warning('Command received : Ping response')
                     device_info.name = 'User device'  # name
                     device_info.loc = 'NA'    # location
                     device_info.time = int(time.time())  # timestamp
@@ -97,7 +100,8 @@ class SerialThread(threading.Thread):
                     self.bytes = list()
                 # register device
                 elif device_info.cmd == CMD_REGISTER:
-                    print '    Command : Register device'
+                    #print '    Command : Register device'
+                    logging.warning('Command received : Register device')
                     device_info.cmd1 = int(self.bytes[index+6])  # 5: available cmd 1
                     device_info.cmd1dtype = int(self.bytes[index+7])  # 6: available cmd 1 - data type
                     device_info.cmd2 = int(self.bytes[index+8])  # 7: 
@@ -137,7 +141,8 @@ class SerialThread(threading.Thread):
                         data4 *= -1
                     else:
                         data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
-                    print '    Command : Update sensor value (%d, %d, %d, %d)' % (data1, data2, data3, data4)
+                    #print '    Command : Update sensor value (%d, %d, %d, %d)' % (data1, data2, data3, data4)
+                    logging.warning('Command received : Update sensor value (%d, %d, %d, %d)' % (data1, data2, data3, data4))
                     device_info.data1 = data1  # 5: int data 1
                     device_info.data2 = data2  # 6: int data 2
                     device_info.data3 = data3  # 7: int data 3
@@ -174,6 +179,7 @@ class SerialThread(threading.Thread):
                     else:
                         data4 = (int(self.bytes[index+12]) << 8) | int(self.bytes[index+13])
                     print '    Command : result of control request (%d, %d, %d, %d)' % (data1, data2, data3, data4)
+                    logging.warning('Command received : control result (%d, %d, %d, %d)' % (data1, data2, data3, data4))
                     device_info.data1 = data1  # int data 1
                     device_info.data2 = data2  # int data 2
                     device_info.data3 = data3  # int data 3
@@ -186,7 +192,8 @@ class SerialThread(threading.Thread):
                     # empty buffer
                     self.bytes = list()
                 else:
-                    print '    Undefined command !!'
+                    #print '    Undefined command !!'
+                    logging.warning('Undefined command found!!')
             # resize buffer
             if len(self.bytes) > 0:
                 del self.bytes[0]
@@ -200,7 +207,8 @@ class SerialThread(threading.Thread):
                 res = self.ser.readline()
                 #print ':'.join("{:02x}".format(ord(c)) for c in res)
             except:
-                print 'Oooops!!! Serial port is not available!!!'
+                #print 'Oooops!!! Serial port is not available!!!'
+                logging.warning('Oooops!!! Serial port is not available!!!')
                 break;
             # Parse
             self.parse(res)

@@ -6,6 +6,9 @@
 #  http://www.hardcopyworld.com
 ###########################################
 
+v0.5.9
+- Use system log instead print function
+
 v0.5.8
 - fix device id bug in sensor/graph command
 - Add logging (save log as homepy.log : default level is WARNING)

@@ -41,13 +41,14 @@ class DeviceManagerThread(threading.Thread):
         self.callback = callback
 
     def run(self):
-        print 'Worker thread: started!!'
+        #print 'Worker thread: started!!'
         while True:
             # Get object from queue
             if self.recv_queue.empty() == False:
                 recv = self.recv_queue.get()
                 if not isinstance(recv, DeviceInfo):
-                    print 'Critical error!!! recv is not a DeviceInfo object!!!'
+                    #print 'Critical error!!! recv is not a DeviceInfo object!!!'
+                    logging.warning('Critical error!!! recv is not a DeviceInfo object!!!')
                     # Send complete signal to queue
                     self.recv_queue.task_done()
                     continue
@@ -71,32 +72,37 @@ class DeviceManagerThread(threading.Thread):
                         if temp is not None:
                             # push to DB
                             self.db.add_monitoring_data(recv)
+                            logging.warning('Update sensor value: cat1 = %d, cat2 = %d, devid = %d' % (recv.cat1, recv.cat2, recv.devid))
                             # check if notification is enabled
                             noti_ids = self.check_noti(recv)
                             if len(noti_ids) > 0:
                                 count = self.check_macro(noti_ids)    # do macro
-                                print '    Found %d macro...' % count
+                                #print '    Found %d macro...' % count
+                                logging.warning('Found %d macro...' % count)
                                 if count < 1:
                                     self.callback(CALLBACK_TYPE_NOTI, recv, "")  # send notification
-                            logging.warning('Update sensor value: cat1 = %d, cat2 = %d, devid = %d' % (recv.cat1, recv.cat2, recv, devid))
 
                     elif recv.cmd == 1: # 0x01 : Ping response
-                        print '    Received Ping response...'
+                        #print '    Received Ping response...'
+                        logging.warning('Received Ping response...')
 
                     elif recv.cmd == 129: # 0x81 : Control signal response
-                        print '    Received Control-Signal response...'
+                        #print '    Received Control-Signal response...'
+                        logging.warning('Received Control-Signal response...')
 
                 # Send complete signal to queue
                 self.recv_queue.task_done()
 
             # Remove old data
             if self.prev_db_clean_time + self.CLEANING_INTERVAL < int(time.time()):
-                print '    Cleaning old data...'
+                #print '    Cleaning old data...'
+                logging.warning('Cleaning old data from DB...')
                 self.prev_db_clean_time = int(time.time())
                 self.delete_sensor_all(self.DEL_SENSOR_TIME)
 
             if self.prev_timer_proc + self.TIMER_CHECK_INTERVAL < int(time.time()):
-                print '    Check timer...'
+                #print '    Check timer...'
+                logging.warning('Check timer...')
                 self.prev_timer_proc = int(time.time())
                 self.check_timer_macro()
 
@@ -493,6 +499,7 @@ class DeviceManagerThread(threading.Thread):
                 # compare notification id
                 if noti_id == row.nid:
                     row.time = time.time()
+                    logging.warning('Found noti triggered  macro.')
                     self.db.update_macro_time(row.id, row.time)
                     self.callback(CALLBACK_TYPE_MACRO, None, row.cmd)  # process command
                     count += 1
@@ -506,6 +513,7 @@ class DeviceManagerThread(threading.Thread):
             if row.interval > 0:
                 if row.time + row.interval*60 < time.time():
                     row.time = time.time()
+                    logging.warning('Found interval macro.')
                     self.db.update_macro_time(row.id, row.time)
                     self.callback(CALLBACK_TYPE_MACRO, None, row.cmd)  # process command
                     count += 1
@@ -514,6 +522,7 @@ class DeviceManagerThread(threading.Thread):
                 now = time.localtime()
                 if now.tm_hour == row.hour and now.tm_min == row.minute:
                     row.time = time.time()
+                    logging.warning('Found time macro.')
                     self.db.update_macro_time(row.id, row.time)
                     self.callback(CALLBACK_TYPE_MACRO, None, row.cmd)  # process command
                     count += 1
